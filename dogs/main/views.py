@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse, HttpResponseRedirect
+from django.http import JsonResponse, HttpResponseRedirect, Http404
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
@@ -685,3 +685,127 @@ def aggregation_annotation_examples(request):
         context['dogsitter_clients_stats'] = demo_dogsitter.get_clients_with_stats()
     
     return render(request, 'main/aggregation_examples.html', context)
+
+@login_required
+def animal_delete(request, pk):
+    animal = get_object_or_404(Animal, pk=pk)
+    
+    if animal.user != request.user:
+        messages.error(request, "У вас нет прав для удаления этого животного")
+        return redirect('animal_list')
+    
+    animal.delete()
+    messages.success(request, f"Животное {animal.name} было успешно удалено")
+    return redirect('animal_list')
+
+@login_required
+def add_animal_to_booking(request, booking_id, animal_id):
+    """Добавление животного в бронирование с обработкой ошибок"""
+    try:
+        booking = Booking.objects.get(pk=booking_id)
+        animal = Animal.objects.get(pk=animal_id)
+        
+        # Проверки
+        if booking.user != request.user:
+            messages.error(request, "Это не ваше бронирование")
+            return redirect('booking_list')
+            
+        if animal.user != request.user:
+            messages.error(request, "Это не ваше животное")
+            return redirect('booking_detail', pk=booking_id)
+            
+        if booking.status != Booking.STATUS_PENDING:
+            messages.error(request, "Можно добавлять животных только в ожидающие бронирования")
+            return redirect('booking_detail', pk=booking_id)
+        
+        # Добавляем животное
+        booking.animals.add(animal)
+        messages.success(request, f"{animal.name} добавлен(а) в бронирование")
+        
+        return redirect('booking_detail', pk=booking_id)
+        
+    except Booking.DoesNotExist:
+        raise Http404("Бронирование не найдено")
+    except Animal.DoesNotExist:
+        raise Http404("Животное не найдено")
+
+@login_required
+def toggle_dogsitter_availability(request, pk):
+    """Переключение доступности догситтера с редиректом на реферер"""
+    dogsitter = get_object_or_404(DogSitter, user=request.user)
+    
+    # Переключаем статус
+    dogsitter.is_available = not dogsitter.is_available
+    dogsitter.save()
+    
+    # Сообщение о результате
+    status = "доступен" if dogsitter.is_available else "недоступен"
+    messages.info(request, f"Ваш статус изменен на: {status}")
+    
+    # Редирект на предыдущую страницу или профиль
+    next_page = request.META.get('HTTP_REFERER')
+    if next_page:
+        return redirect(next_page)
+    return redirect('dogsitter_profile')
+
+@login_required
+def create_review(request, booking_id):
+    """Создание отзыва с проверками и редиректами"""
+    booking = get_object_or_404(Booking, pk=booking_id)
+    
+    # Проверяем, можно ли оставить отзыв
+    if booking.user != request.user:
+        messages.error(request, "Вы не можете оставить отзыв на чужое бронирование")
+        return redirect('booking_list')
+        
+    if booking.status != Booking.STATUS_COMPLETED:
+        messages.error(request, "Отзыв можно оставить только на завершённое бронирование")
+        return redirect('booking_detail', pk=booking_id)
+        
+    if hasattr(booking, 'review'):
+        messages.error(request, "Вы уже оставили отзыв на это бронирование")
+        return redirect('booking_detail', pk=booking_id)
+    
+    if request.method == 'POST':
+        # Создаем отзыв
+        review = Review.objects.create(
+            booking=booking,
+            rating=request.POST.get('rating'),
+            comment=request.POST.get('comment')
+        )
+        messages.success(request, "Спасибо за ваш отзыв!")
+        return redirect('booking_detail', pk=booking_id)
+    
+    return render(request, 'main/review_form.html', {'booking': booking})
+
+@login_required
+def cancel_booking_with_refund(request, booking_id):
+    """Отмена бронирования с возвратом оплаты и условными редиректами"""
+    booking = get_object_or_404(Booking, pk=booking_id)
+    
+    # Проверяем права и условия
+    if booking.user != request.user:
+        messages.error(request, "Вы не можете отменить чужое бронирование")
+        return redirect('booking_list')
+    
+    if booking.status != Booking.STATUS_CONFIRMED:
+        messages.error(request, "Можно отменить только подтверждённое бронирование")
+        return redirect('booking_detail', pk=booking_id)
+    
+    # Проверяем срок до начала бронирования
+    if (booking.start_date - timezone.now().date()).days < 2:
+        messages.error(request, "Отмена возможна не менее чем за 48 часов до начала")
+        return redirect('booking_detail', pk=booking_id)
+    
+    try:
+        # Отменяем бронирование
+        booking.status = Booking.STATUS_CANCELLED
+        booking.save()
+        
+        # Возвращаем оплату (условно)
+        messages.success(request, "Бронирование отменено. Средства будут возвращены в течение 3 рабочих дней")
+        return redirect('booking_list')
+        
+    except Exception as e:
+        messages.error(request, "Произошла ошибка при отмене бронирования")
+        return redirect('booking_detail', pk=booking_id)
