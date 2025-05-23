@@ -1,0 +1,560 @@
+{% extends 'base.html' %}
+
+{% block title %}Примеры агрегирования и аннотирования{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Примеры агрегирования и аннотирования в Django ORM</h1>
+    
+    <div class="alert alert-info">
+        <h5>Что такое агрегирование и аннотирование?</h5>
+        <p><strong>Агрегирование</strong> - это процесс вычисления итоговых значений по группе объектов (например, сумма, среднее, минимум, максимум).</p>
+        <p><strong>Аннотирование</strong> - это процесс добавления вычисляемых полей к объектам запроса.</p>
+    </div>
+    
+    <!-- Пример 1: Базовое агрегирование -->
+    <div class="card mb-5">
+        <div class="card-header bg-primary text-white">
+            <h2>Пример 1: Базовое агрегирование - статистика системы</h2>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h4>Общая статистика:</h4>
+                    <table class="table table-striped">
+                        <tr>
+                            <th>Пользователей:</th>
+                            <td>{{ system_stats.users_count }}</td>
+                        </tr>
+                        <tr>
+                            <th>Животных:</th>
+                            <td>{{ system_stats.animals_count }}</td>
+                        </tr>
+                        <tr>
+                            <th>Догситтеров:</th>
+                            <td>{{ system_stats.dogsitters_count }}</td>
+                        </tr>
+                        <tr>
+                            <th>Бронирований:</th>
+                            <td>{{ system_stats.bookings_count }}</td>
+                        </tr>
+                        <tr>
+                            <th>Отзывов:</th>
+                            <td>{{ system_stats.reviews_count }}</td>
+                        </tr>
+                    </table>
+                    
+                    <h4>Статистика по статусам бронирований:</h4>
+                    <table class="table table-striped">
+                        <tr>
+                            <th>Ожидают подтверждения:</th>
+                            <td>{{ system_stats.pending_bookings }}</td>
+                        </tr>
+                        <tr>
+                            <th>Подтверждено:</th>
+                            <td>{{ system_stats.confirmed_bookings }}</td>
+                        </tr>
+                        <tr>
+                            <th>Завершено:</th>
+                            <td>{{ system_stats.completed_bookings }}</td>
+                        </tr>
+                        <tr>
+                            <th>Отменено:</th>
+                            <td>{{ system_stats.cancelled_bookings }}</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div class="col-md-6">
+                    <h4>Статистика по типам животных:</h4>
+                    <table class="table table-striped">
+                        <tr>
+                            <th>Собак:</th>
+                            <td>{{ system_stats.dogs_count }}</td>
+                        </tr>
+                        <tr>
+                            <th>Кошек:</th>
+                            <td>{{ system_stats.cats_count }}</td>
+                        </tr>
+                        <tr>
+                            <th>Других животных:</th>
+                            <td>{{ system_stats.other_animals_count }}</td>
+                        </tr>
+                    </table>
+                    
+                    <h4>Агрегирование статистики бронирований:</h4>
+                    <table class="table table-striped">
+                        <tr>
+                            <th>Общая сумма (₽):</th>
+                            <td>{{ system_stats.bookings_stats.total_price_sum|default:'0' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Средняя стоимость (₽):</th>
+                            <td>{{ system_stats.bookings_stats.avg_price|default:'0'|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <th>Максимальная стоимость (₽):</th>
+                            <td>{{ system_stats.bookings_stats.max_price|default:'0' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Минимальная стоимость (₽):</th>
+                            <td>{{ system_stats.bookings_stats.min_price|default:'0' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Средняя продолжительность (дни):</th>
+                            <td>{{ system_stats.bookings_stats.avg_duration|default:'0'|floatformat:1 }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-12">
+                    <h4>Агрегирование статистики отзывов:</h4>
+                    <table class="table table-striped">
+                        <tr>
+                            <th>Средний рейтинг:</th>
+                            <td>{{ system_stats.reviews_stats.avg_rating|default:'0'|floatformat:1 }}</td>
+                        </tr>
+                        <tr>
+                            <th>Общее количество отзывов:</th>
+                            <td>{{ system_stats.reviews_stats.reviews_count }}</td>
+                        </tr>
+                        <tr>
+                            <th>⭐⭐⭐⭐⭐ (5 звезд):</th>
+                            <td>{{ system_stats.reviews_stats.five_star_reviews }}</td>
+                        </tr>
+                        <tr>
+                            <th>⭐⭐⭐⭐ (4 звезды):</th>
+                            <td>{{ system_stats.reviews_stats.four_star_reviews }}</td>
+                        </tr>
+                        <tr>
+                            <th>⭐⭐⭐ (3 звезды):</th>
+                            <td>{{ system_stats.reviews_stats.three_star_reviews }}</td>
+                        </tr>
+                        <tr>
+                            <th>⭐⭐ (2 звезды):</th>
+                            <td>{{ system_stats.reviews_stats.two_star_reviews }}</td>
+                        </tr>
+                        <tr>
+                            <th>⭐ (1 звезда):</th>
+                            <td>{{ system_stats.reviews_stats.one_star_reviews }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="alert alert-secondary">
+                <h5>Код примера:</h5>
+                <pre>
+# Базовое агрегирование - общая статистика системы
+system_stats = {
+    'users_count': User.objects.count(),
+    'animals_count': Animal.objects.count(),
+    'dogsitters_count': DogSitter.objects.count(),
+    'bookings_count': Booking.objects.count(),
+    'reviews_count': Review.objects.count(),
+    
+    # Статистика по статусам бронирований
+    'pending_bookings': Booking.objects.filter(status=Booking.STATUS_PENDING).count(),
+    'confirmed_bookings': Booking.objects.filter(status=Booking.STATUS_CONFIRMED).count(),
+    'completed_bookings': Booking.objects.filter(status=Booking.STATUS_COMPLETED).count(),
+    'cancelled_bookings': Booking.objects.filter(status=Booking.STATUS_CANCELLED).count(),
+    
+    # Статистика по типам животных
+    'dogs_count': Animal.objects.filter(type=Animal.DOG).count(),
+    'cats_count': Animal.objects.filter(type=Animal.CAT).count(),
+    'other_animals_count': Animal.objects.filter(type=Animal.OTHER).count(),
+    
+    # Агрегирование статистики бронирований
+    'bookings_stats': Booking.objects.aggregate(
+        total_price_sum=Sum('total_price'),
+        avg_price=Avg('total_price'),
+        max_price=Max('total_price'),
+        min_price=Min('total_price'),
+        avg_duration=Avg(F('end_date') - F('start_date'))
+    ),
+    
+    # Агрегирование статистики отзывов
+    'reviews_stats': Review.objects.aggregate(
+        avg_rating=Avg('rating'),
+        reviews_count=Count('id'),
+        five_star_reviews=Count('id', filter=Q(rating=5)),
+        four_star_reviews=Count('id', filter=Q(rating=4)),
+        three_star_reviews=Count('id', filter=Q(rating=3)),
+        two_star_reviews=Count('id', filter=Q(rating=2)),
+        one_star_reviews=Count('id', filter=Q(rating=1))
+    )
+}
+                </pre>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Пример 2: Аннотирование объектов -->
+    <div class="card mb-5">
+        <div class="card-header bg-success text-white">
+            <h2>Пример 2: Аннотирование объектов - метрики пользователей и догситтеров</h2>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h4>ТОП-10 пользователей по количеству бронирований:</h4>
+                    {% if top_users %}
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Имя</th>
+                                <th>Кол-во бронирований</th>
+                                <th>Животных</th>
+                                <th>Потрачено (₽)</th>
+                                <th>Последнее бронирование</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in top_users %}
+                            <tr>
+                                <td>{{ user.full_name }}</td>
+                                <td>{{ user.bookings_count }}</td>
+                                <td>{{ user.animals_count }}</td>
+                                <td>{{ user.total_spent|default:0 }}</td>
+                                <td>{{ user.last_booking_date|date:"d.m.Y"|default:"Нет" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="alert alert-warning">Нет данных о пользователях</div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-6">
+                    <h4>ТОП-10 догситтеров по количеству бронирований:</h4>
+                    {% if top_dogsitters %}
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Имя</th>
+                                <th>Кол-во бронирований</th>
+                                <th>Клиентов</th>
+                                <th>Заработано (₽)</th>
+                                <th>Рейтинг</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dogsitter in top_dogsitters %}
+                            <tr>
+                                <td>{{ dogsitter.full_name }}</td>
+                                <td>{{ dogsitter.bookings_count }}</td>
+                                <td>{{ dogsitter.clients_count }}</td>
+                                <td>{{ dogsitter.total_earnings|default:0 }}</td>
+                                <td>{{ dogsitter.avg_client_rating|default:0|floatformat:1 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="alert alert-warning">Нет данных о догситтерах</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="alert alert-secondary">
+                <h5>Код примера:</h5>
+                <pre>
+# Аннотирование объектов - получение метрик для пользователей
+top_users = User.objects.annotate(
+    bookings_count=Count('bookings'),
+    animals_count=Count('animals'),
+    total_spent=Sum('bookings__total_price', filter=Q(bookings__status=Booking.STATUS_COMPLETED)),
+    completed_bookings=Count('bookings', filter=Q(bookings__status=Booking.STATUS_COMPLETED)),
+    full_name=Concat('last_name', Value(' '), 'first_name', output_field=CharField()),
+    last_booking_date=Max('bookings__start_date'),
+    has_dogs=Case(
+        When(animals__type=Animal.DOG, then=Value(True)),
+        default=Value(False),
+        output_field=IntegerField()
+    ),
+    has_cats=Case(
+        When(animals__type=Animal.CAT, then=Value(True)),
+        default=Value(False),
+        output_field=IntegerField()
+    )
+).order_by('-bookings_count')[:10]
+
+# Аннотирование объектов - получение метрик для догситтеров
+top_dogsitters = DogSitter.objects.annotate(
+    bookings_count=Count('bookings'),
+    total_earnings=Sum('bookings__total_price', filter=Q(bookings__status=Booking.STATUS_COMPLETED)),
+    clients_count=Count('bookings__user', distinct=True),
+    animals_count=Count('bookings__animals', distinct=True),
+    avg_client_rating=Avg('bookings__review__rating'),
+    full_name=Concat('last_name', Value(' '), 'first_name', output_field=CharField()),
+    last_booking_date=Max('bookings__start_date'),
+    reviews_count=Count('bookings__review')
+).order_by('-bookings_count')[:10]
+                </pre>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Пример 3: Сложное аннотирование с группировкой -->
+    <div class="card mb-5">
+        <div class="card-header bg-warning">
+            <h2>Пример 3: Сложное аннотирование с группировкой</h2>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h4>Статистика бронирований по месяцам:</h4>
+                    {% if bookings_by_month %}
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Месяц</th>
+                                <th>Кол-во</th>
+                                <th>Выручка (₽)</th>
+                                <th>Ср. цена (₽)</th>
+                                <th>Завершено</th>
+                                <th>Отменено</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for month_stat in bookings_by_month %}
+                            <tr>
+                                <td>{{ month_stat.month|date:"m.Y" }}</td>
+                                <td>{{ month_stat.bookings_count }}</td>
+                                <td>{{ month_stat.total_revenue|default:0 }}</td>
+                                <td>{{ month_stat.avg_price|default:0|floatformat:0 }}</td>
+                                <td>{{ month_stat.completed_count }}</td>
+                                <td>{{ month_stat.cancelled_count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="alert alert-warning">Нет данных о бронированиях по месяцам</div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-6">
+                    <h4>Статистика по размерам животных:</h4>
+                    {% if animal_size_stats %}
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Размер</th>
+                                <th>Количество</th>
+                                <th>Ср. кол-во бронирований</th>
+                                <th>Всего бронирований</th>
+                                <th>С особыми потребностями</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for size_stat in animal_size_stats %}
+                            <tr>
+                                <td>{{ size_stat.size }}</td>
+                                <td>{{ size_stat.count }}</td>
+                                <td>{{ size_stat.avg_bookings|floatformat:1 }}</td>
+                                <td>{{ size_stat.bookings_count }}</td>
+                                <td>{{ size_stat.with_special_needs }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="alert alert-warning">Нет данных о размерах животных</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="alert alert-secondary">
+                <h5>Код примера:</h5>
+                <pre>
+# Сложное аннотирование с группировкой - статистика по месяцам
+bookings_by_month = Booking.objects.annotate(
+    month=TruncMonth('start_date')
+).values('month').annotate(
+    bookings_count=Count('id'),
+    total_revenue=Sum('total_price'),
+    avg_price=Avg('total_price'),
+    completed_count=Count('id', filter=Q(status=Booking.STATUS_COMPLETED)),
+    cancelled_count=Count('id', filter=Q(status=Booking.STATUS_CANCELLED)),
+    animals_count=Count('animals', distinct=True),
+    services_count=Count('services', distinct=True)
+).order_by('-month')
+
+# Статистика по размерам животных
+animal_size_stats = Animal.objects.values('size').annotate(
+    count=Count('id'),
+    avg_bookings=Count('bookings') / Count('id', distinct=True),
+    bookings_count=Count('bookings'),
+    unique_owners=Count('user', distinct=True),
+    with_special_needs=Count('id', filter=~Q(special_needs='') & ~Q(special_needs__isnull=True))
+).order_by('size')
+                </pre>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Примеры использования методов моделей -->
+    <div class="card mb-5">
+        <div class="card-header bg-info text-white">
+            <h2>Комплексные методы статистики в моделях</h2>
+        </div>
+        <div class="card-body">
+            {% if user_bookings_stats %}
+            <h4>Статистика бронирований пользователя (метод get_bookings_stats):</h4>
+            <table class="table table-striped">
+                <tr>
+                    <th>Всего бронирований:</th>
+                    <td>{{ user_bookings_stats.total_bookings }}</td>
+                </tr>
+                <tr>
+                    <th>Всего животных:</th>
+                    <td>{{ user_bookings_stats.total_animals }}</td>
+                </tr>
+                <tr>
+                    <th>Завершено бронирований:</th>
+                    <td>{{ user_bookings_stats.completed_bookings }}</td>
+                </tr>
+                <tr>
+                    <th>Ожидают подтверждения:</th>
+                    <td>{{ user_bookings_stats.pending_bookings }}</td>
+                </tr>
+                <tr>
+                    <th>Отменено бронирований:</th>
+                    <td>{{ user_bookings_stats.cancelled_bookings }}</td>
+                </tr>
+                <tr>
+                    <th>Всего потрачено (₽):</th>
+                    <td>{{ user_bookings_stats.total_spent|default:0 }}</td>
+                </tr>
+            </table>
+            {% endif %}
+            
+            {% if dogsitter_statistics %}
+            <h4>Статистика догситтера (метод get_statistics):</h4>
+            <div class="row">
+                <div class="col-md-4">
+                    <h5>Бронирования:</h5>
+                    <table class="table table-striped">
+                        <tr>
+                            <th>Всего:</th>
+                            <td>{{ dogsitter_statistics.bookings_stats.total_bookings }}</td>
+                        </tr>
+                        <tr>
+                            <th>Завершено:</th>
+                            <td>{{ dogsitter_statistics.bookings_stats.completed_bookings }}</td>
+                        </tr>
+                        <tr>
+                            <th>Заработано (₽):</th>
+                            <td>{{ dogsitter_statistics.bookings_stats.total_earnings|default:0 }}</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div class="col-md-4">
+                    <h5>Животные:</h5>
+                    <table class="table table-striped">
+                        <tr>
+                            <th>Всего:</th>
+                            <td>{{ dogsitter_statistics.animals_stats.total_animals }}</td>
+                        </tr>
+                        <tr>
+                            <th>Собак:</th>
+                            <td>{{ dogsitter_statistics.animals_stats.dogs_count }}</td>
+                        </tr>
+                        <tr>
+                            <th>Кошек:</th>
+                            <td>{{ dogsitter_statistics.animals_stats.cats_count }}</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <div class="col-md-4">
+                    <h5>Отзывы:</h5>
+                    <table class="table table-striped">
+                        <tr>
+                            <th>Всего:</th>
+                            <td>{{ dogsitter_statistics.reviews_stats.total_reviews }}</td>
+                        </tr>
+                        <tr>
+                            <th>Средний рейтинг:</th>
+                            <td>{{ dogsitter_statistics.reviews_stats.avg_rating|default:0|floatformat:1 }}</td>
+                        </tr>
+                        <tr>
+                            <th>5 звезд:</th>
+                            <td>{{ dogsitter_statistics.reviews_stats.five_star_reviews }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="alert alert-secondary">
+                <h5>Код примера методов моделей:</h5>
+                <pre>
+# Метод User.get_bookings_stats
+def get_bookings_stats(self):
+    """
+    Получает статистику бронирований пользователя с использованием агрегирования
+    """
+    return self.bookings.aggregate(
+        total_bookings=Count('id'),
+        total_animals=Count('animals', distinct=True),
+        completed_bookings=Count('id', filter=Q(status=Booking.STATUS_COMPLETED)),
+        pending_bookings=Count('id', filter=Q(status=Booking.STATUS_PENDING)),
+        cancelled_bookings=Count('id', filter=Q(status=Booking.STATUS_CANCELLED)),
+        total_spent=Sum('total_price', filter=Q(status=Booking.STATUS_COMPLETED)),
+        avg_booking_price=Avg('total_price'),
+        max_booking_price=Max('total_price'),
+        min_booking_price=Min('total_price'),
+        longest_booking=Max(F('end_date') - F('start_date')),
+        shortest_booking=Min(F('end_date') - F('start_date')),
+        avg_booking_duration=Avg(F('end_date') - F('start_date'))
+    )
+
+# Метод DogSitter.get_statistics
+def get_statistics(self):
+    """
+    Получает подробную статистику догситтера с использованием агрегирования
+    """
+    return {
+        # Общая статистика бронирований
+        'bookings_stats': self.bookings.aggregate(
+            total_bookings=Count('id'),
+            completed_bookings=Count('id', filter=Q(status=Booking.STATUS_COMPLETED)),
+            cancelled_bookings=Count('id', filter=Q(status=Booking.STATUS_CANCELLED)),
+            total_earnings=Sum('total_price', filter=Q(status=Booking.STATUS_COMPLETED)),
+            avg_booking_price=Avg('total_price'),
+            avg_booking_duration=Avg(F('end_date') - F('start_date'))
+        ),
+        
+        # Статистика по животным
+        'animals_stats': self.bookings.aggregate(
+            total_animals=Count('animals', distinct=True),
+            dogs_count=Count('animals', filter=Q(animals__type=Animal.DOG), distinct=True),
+            cats_count=Count('animals', filter=Q(animals__type=Animal.CAT), distinct=True),
+            small_animals=Count('animals', filter=Q(animals__size=Animal.SIZE_SMALL), distinct=True),
+            medium_animals=Count('animals', filter=Q(animals__size=Animal.SIZE_MEDIUM), distinct=True),
+            large_animals=Count('animals', filter=Q(animals__size=Animal.SIZE_LARGE), distinct=True)
+        ),
+        
+        # Статистика по отзывам
+        'reviews_stats': Review.objects.filter(booking__dog_sitter=self).aggregate(
+            total_reviews=Count('id'),
+            avg_rating=Avg('rating'),
+            five_star_reviews=Count('id', filter=Q(rating=5)),
+            four_star_reviews=Count('id', filter=Q(rating=4)),
+            three_star_reviews=Count('id', filter=Q(rating=3)),
+            two_star_reviews=Count('id', filter=Q(rating=2)),
+            one_star_reviews=Count('id', filter=Q(rating=1))
+        )
+    }
+                </pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

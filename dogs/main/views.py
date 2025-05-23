@@ -1,9 +1,14 @@
-from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse
-from django.views.generic import ListView, DetailView
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import JsonResponse, HttpResponseRedirect
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.urls import reverse
 from django.db.models import Q, Count, Avg, Sum, F, ExpressionWrapper, fields
 from django.utils import timezone
 from datetime import timedelta
+from django.db.models.functions import TruncMonth, Concat
 
 from .models import User, Animal, Booking, DogSitter, Service, Review
 
@@ -369,3 +374,314 @@ def time_based_filters(request):
     }
     
     return render(request, 'main/time_filters.html', context)
+
+
+# Представления для модели User
+
+class UserListView(LoginRequiredMixin, ListView):
+    model = User
+    template_name = 'main/user_list.html'
+    context_object_name = 'users'
+    
+
+class UserDetailView(LoginRequiredMixin, DetailView):
+    model = User
+    template_name = 'main/user_detail.html'
+    context_object_name = 'user'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.get_object()
+        context['dogs'] = user.get_all_dogs()
+        context['cats'] = user.get_all_cats()
+        context['upcoming_bookings'] = user.get_upcoming_bookings()
+        context['active_bookings_count'] = user.get_active_bookings_count()
+        return context
+
+
+class UserCreateView(CreateView):
+    model = User
+    template_name = 'main/user_form.html'
+    fields = ['email', 'first_name', 'last_name', 'password']
+
+
+class UserUpdateView(LoginRequiredMixin, UpdateView):
+    model = User
+    template_name = 'main/user_form.html'
+    fields = ['email', 'first_name', 'last_name']
+
+
+class UserDeleteView(LoginRequiredMixin, DeleteView):
+    model = User
+    template_name = 'main/user_confirm_delete.html'
+    success_url = '/users/'
+
+
+# Представления для модели Booking
+
+@login_required
+def booking_cancel(request, pk):
+    """
+    Отмена бронирования
+    """
+    booking = get_object_or_404(Booking, pk=pk)
+    
+    if not booking.can_be_cancelled():
+        messages.error(request, "Это бронирование нельзя отменить")
+        # Использование get_absolute_url вместо хардкода URL
+        return HttpResponseRedirect(booking.get_absolute_url())
+    
+    booking.status = Booking.STATUS_CANCELLED
+    booking.save()
+    messages.success(request, "Бронирование успешно отменено")
+    
+    # Использование get_absolute_url для перенаправления
+    return HttpResponseRedirect(booking.get_absolute_url())
+
+
+@login_required
+def booking_complete(request, pk):
+    """
+    Завершение бронирования
+    """
+    booking = get_object_or_404(Booking, pk=pk)
+    
+    if booking.status != Booking.STATUS_CONFIRMED:
+        messages.error(request, "Завершить можно только подтвержденное бронирование")
+        # Использование get_absolute_url
+        return HttpResponseRedirect(booking.get_absolute_url())
+    
+    booking.status = Booking.STATUS_COMPLETED
+    booking.save()
+    messages.success(request, "Бронирование успешно завершено")
+    
+    # Перенаправление на страницу создания отзыва с использованием reverse
+    return HttpResponseRedirect(reverse('review_create', kwargs={'booking_id': booking.id}))
+
+
+class BookingDetailView(LoginRequiredMixin, DetailView):
+    model = Booking
+    template_name = 'main/booking_detail.html'
+    context_object_name = 'booking'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        booking = self.get_object()
+        
+        # Получаем ссылки на связанные объекты с использованием get_absolute_url
+        context['user_url'] = booking.get_user_url()
+        
+        if booking.dog_sitter:
+            context['dogsitter_url'] = booking.get_dogsitter_url()
+            
+            
+        animals = booking.animals.all()
+        for animal in animals:
+            animal.url = animal.get_absolute_url()
+            
+        context['animals'] = animals
+        
+        # Формируем ссылки действий с использованием get_absolute_url
+        context['edit_url'] = booking.get_edit_url()
+        context['cancel_url'] = booking.get_cancel_url()
+        context['complete_url'] = booking.get_complete_url()
+        
+        return context
+
+
+# Представление для создания отзыва
+
+class ReviewCreateView(LoginRequiredMixin, CreateView):
+    template_name = 'main/review_form.html'
+    fields = ['rating', 'comment']
+
+    def get_success_url(self):
+        # Использование reverse для получения URL
+        return f'/bookings/{self.kwargs["booking_id"]}/'
+    
+    def form_valid(self, form):
+        # Привязка к бронированию
+        booking_id = self.kwargs.get('booking_id')
+        booking = get_object_or_404(Booking, pk=booking_id)
+        form.instance.booking = booking
+        form.instance.date = timezone.now()
+        
+        return super().form_valid(form)
+
+
+# Пример использования Booking Manager
+
+def active_bookings(request):
+    """
+    Страница с активными бронированиями
+    """
+    # Используем метод active() из модельного менеджера
+    bookings = Booking.objects.active()
+    
+    return render(request, 'main/active_bookings.html', {
+        'bookings': bookings,
+        'title': 'Активные бронирования'
+    })
+
+
+def current_bookings(request):
+    """
+    Страница с текущими бронированиями
+    """
+    # Используем метод current() из модельного менеджера
+    bookings = Booking.objects.current()
+    
+    return render(request, 'main/current_bookings.html', {
+        'bookings': bookings,
+        'title': 'Текущие бронирования'
+    })
+
+
+def future_bookings(request):
+    """
+    Страница с предстоящими бронированиями
+    """
+    # Используем метод future() из модельного менеджера
+    bookings = Booking.objects.future()
+    
+    return render(request, 'main/future_bookings.html', {
+        'bookings': bookings,
+        'title': 'Предстоящие бронирования'
+    })
+
+
+def long_term_bookings(request):
+    """
+    Страница с долгосрочными бронированиями
+    """
+    # Используем метод long_term() из модельного менеджера
+    bookings = Booking.objects.long_term()
+    
+    return render(request, 'main/long_term_bookings.html', {
+        'bookings': bookings,
+        'title': 'Долгосрочные бронирования'
+    })
+
+
+def aggregation_annotation_examples(request):
+    """
+    Представление для демонстрации примеров использования агрегирования и аннотирования в Django ORM
+    """
+    context = {}
+    
+    # Пример 1: Базовое агрегирование - общая статистика системы
+    system_stats = {
+        'users_count': User.objects.count(),
+        'animals_count': Animal.objects.count(),
+        'dogsitters_count': DogSitter.objects.count(),
+        'bookings_count': Booking.objects.count(),
+        'reviews_count': Review.objects.count(),
+        
+        # Статистика по статусам бронирований
+        'pending_bookings': Booking.objects.filter(status=Booking.STATUS_PENDING).count(),
+        'confirmed_bookings': Booking.objects.filter(status=Booking.STATUS_CONFIRMED).count(),
+        'completed_bookings': Booking.objects.filter(status=Booking.STATUS_COMPLETED).count(),
+        'cancelled_bookings': Booking.objects.filter(status=Booking.STATUS_CANCELLED).count(),
+        
+        # Статистика по типам животных
+        'dogs_count': Animal.objects.filter(type=Animal.DOG).count(),
+        'cats_count': Animal.objects.filter(type=Animal.CAT).count(),
+        'other_animals_count': Animal.objects.filter(type=Animal.OTHER).count(),
+        
+        # Агрегирование статистики бронирований
+        'bookings_stats': Booking.objects.aggregate(
+            total_price_sum=Sum('total_price'),
+            avg_price=Avg('total_price'),
+            max_price=Max('total_price'),
+            min_price=Min('total_price'),
+            avg_duration=Avg(F('end_date') - F('start_date'))
+        ),
+        
+        # Агрегирование статистики отзывов
+        'reviews_stats': Review.objects.aggregate(
+            avg_rating=Avg('rating'),
+            reviews_count=Count('id'),
+            five_star_reviews=Count('id', filter=Q(rating=5)),
+            four_star_reviews=Count('id', filter=Q(rating=4)),
+            three_star_reviews=Count('id', filter=Q(rating=3)),
+            two_star_reviews=Count('id', filter=Q(rating=2)),
+            one_star_reviews=Count('id', filter=Q(rating=1))
+        )
+    }
+    context['system_stats'] = system_stats
+    
+    # Пример 2: Аннотирование объектов - получение метрик для пользователей и догситтеров
+    top_users = User.objects.annotate(
+        bookings_count=Count('bookings'),
+        animals_count=Count('animals'),
+        total_spent=Sum('bookings__total_price', filter=Q(bookings__status=Booking.STATUS_COMPLETED)),
+        completed_bookings=Count('bookings', filter=Q(bookings__status=Booking.STATUS_COMPLETED)),
+        full_name=Concat('last_name', Value(' '), 'first_name', output_field=CharField()),
+        last_booking_date=Max('bookings__start_date'),
+        has_dogs=Case(
+            When(animals__type=Animal.DOG, then=Value(True)),
+            default=Value(False),
+            output_field=IntegerField()
+        ),
+        has_cats=Case(
+            When(animals__type=Animal.CAT, then=Value(True)),
+            default=Value(False),
+            output_field=IntegerField()
+        )
+    ).order_by('-bookings_count')[:10]
+    
+    top_dogsitters = DogSitter.objects.annotate(
+        bookings_count=Count('bookings'),
+        total_earnings=Sum('bookings__total_price', filter=Q(bookings__status=Booking.STATUS_COMPLETED)),
+        clients_count=Count('bookings__user', distinct=True),
+        animals_count=Count('bookings__animals', distinct=True),
+        avg_client_rating=Avg('bookings__review__rating'),
+        full_name=Concat('last_name', Value(' '), 'first_name', output_field=CharField()),
+        last_booking_date=Max('bookings__start_date'),
+        reviews_count=Count('bookings__review')
+    ).order_by('-bookings_count')[:10]
+    
+    context['top_users'] = top_users
+    context['top_dogsitters'] = top_dogsitters
+    
+    # Пример 3: Сложное аннотирование с группировкой - статистика по месяцам и размерам животных
+    bookings_by_month = Booking.objects.annotate(
+        month=TruncMonth('start_date')
+    ).values('month').annotate(
+        bookings_count=Count('id'),
+        total_revenue=Sum('total_price'),
+        avg_price=Avg('total_price'),
+        completed_count=Count('id', filter=Q(status=Booking.STATUS_COMPLETED)),
+        cancelled_count=Count('id', filter=Q(status=Booking.STATUS_CANCELLED)),
+        animals_count=Count('animals', distinct=True),
+        services_count=Count('services', distinct=True)
+    ).order_by('-month')
+    
+    # Статистика по размерам животных
+    animal_size_stats = Animal.objects.values('size').annotate(
+        count=Count('id'),
+        avg_bookings=Count('bookings') / Count('id', distinct=True),
+        bookings_count=Count('bookings'),
+        unique_owners=Count('user', distinct=True),
+        with_special_needs=Count('id', filter=~Q(special_needs='') & ~Q(special_needs__isnull=True))
+    ).order_by('size')
+    
+    # Используем методы моделей для получения комплексных статистик
+    # Выберем пользователя и догситтера для демонстрации
+    demo_user = User.objects.annotate(bookings_count=Count('bookings')).order_by('-bookings_count').first()
+    demo_dogsitter = DogSitter.objects.annotate(bookings_count=Count('bookings')).order_by('-bookings_count').first()
+    
+    context['bookings_by_month'] = bookings_by_month
+    context['animal_size_stats'] = animal_size_stats
+    
+    if demo_user:
+        context['user_bookings_stats'] = demo_user.get_bookings_stats()
+        context['user_bookings_by_month'] = demo_user.get_bookings_by_month_annotated()
+        context['user_animals_stats'] = demo_user.get_animals_with_bookings_stats()
+    
+    if demo_dogsitter:
+        context['dogsitter_statistics'] = demo_dogsitter.get_statistics()
+        context['dogsitter_bookings_by_month'] = demo_dogsitter.get_bookings_by_month()
+        context['dogsitter_clients_stats'] = demo_dogsitter.get_clients_with_stats()
+    
+    return render(request, 'main/aggregation_examples.html', context)

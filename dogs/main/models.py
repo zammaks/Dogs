@@ -2,118 +2,65 @@ from django.db import models
 from django.core.validators import RegexValidator, EmailValidator
 from django.utils import timezone
 from datetime import timedelta
+from django.db.models import F, ExpressionWrapper, fields, Avg, Count, Sum, Min, Max, Case, When, IntegerField, Q, Value, CharField
+from django.urls import reverse
+from django.db.models.functions import TruncMonth, TruncYear, Concat
+from users.models import User
 
 
-
-class User(models.Model):
-    """Модель для таблицы Users (Пользователи)"""
-    first_name = models.CharField(max_length=100, verbose_name="Имя")
-    last_name = models.CharField(max_length=100, verbose_name="Фамилия")
-    middle_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="Отчество")
-    email = models.EmailField(
-        unique=True,
-        verbose_name="Электронная почта",
-        validators=[EmailValidator(message="Введите корректный адрес электронной почты.")]
-    )
-    phone = models.CharField(
-        max_length=15,
-        blank=True,
-        null=True,
-        verbose_name="Телефон",
-        validators=[
-            RegexValidator(
-                regex=r'^\+?1?\d{9,15}$',
-                message="Телефон должен быть в формате: '+79999999999'. Допускается до 15 цифр."
-            )
-        ]
-    )
-    address = models.TextField(blank=True, null=True, verbose_name="Адрес")
-    registration_date = models.DateTimeField(default=timezone.now, verbose_name="Дата регистрации")
-    is_active = models.BooleanField(default=True, verbose_name="Активен")
-
-    def __str__(self):
-        return f"{self.last_name} {self.first_name}"
-        
-    def get_upcoming_bookings(self):
+class BookingManager(models.Manager):
+    
+    def active(self):
+        return self.filter(
+            status__in=['pending', 'confirmed']
+        ).order_by('start_date')
+    
+    def pending(self):
+        return self.filter(status='pending').order_by('start_date')
+    
+    def confirmed(self):
+        return self.filter(status='confirmed').order_by('start_date')
+    
+    def completed(self):
+        return self.filter(status='completed').order_by('-end_date')
+    
+    def future(self):
         today = timezone.now().date()
-        return self.bookings.filter(start_date__gte=today).order_by('start_date')
-        
-    def get_booking_history(self, days=90):
-        end_date = timezone.now().date() - timedelta(days=days)
-        return self.bookings.filter(end_date__lte=timezone.now().date(), 
-                                    end_date__gte=end_date).order_by('-end_date')
-
-    def get_all_dogs(self):
-        """Получение всех собак пользователя"""
-        return self.animals.filter(type=Animal.DOG)
+        return self.filter(start_date__gt=today).order_by('start_date')
     
-    def get_all_cats(self):
-        """Получение всех котов пользователя"""
-        return self.animals.filter(type=Animal.CAT)
+    def current(self):
+        today = timezone.now().date()
+        return self.filter(
+            start_date__lte=today,
+            end_date__gte=today,
+            status='confirmed'
+        ).order_by('end_date')
     
-    def get_active_bookings_count(self):
-        """Получение количества активных бронирований пользователя"""
-        return self.bookings.filter(
-            status__in=[Booking.STATUS_PENDING, Booking.STATUS_CONFIRMED]
-        ).count()
-        
-    def get_animals_by_size(self, size):
-        """Получает животных пользователя по размеру"""
-        return self.animals.filter(size=size)
-        
-    def has_large_dogs(self):
-        """Проверяет, есть ли у пользователя крупные собаки"""
-        return self.animals.filter(
-            type=Animal.DOG, 
-            size=Animal.SIZE_LARGE
-        ).exists()
-        
-    def get_bookings_with_dogsitter(self, dogsitter_id):
-        return self.bookings.filter(dog_sitter__id=dogsitter_id)
-        
-    def get_bookings_with_service(self, service_name):
-        return self.bookings.filter(services__name__icontains=service_name).distinct()
-        
-    def get_bookings_by_month(self, year, month):
-        """Получает бронирования пользователя за указанный месяц и год"""
-        return self.bookings.filter(
-            start_date__year=year,
-            start_date__month=month
+    def with_large_dogs(self):
+        return self.filter(
+            animals__type='dog',
+            animals__size='large'
+        ).distinct()
+    
+    def long_term(self, min_days=7):
+        """Возвращает долгосрочные бронирования"""
+        duration = ExpressionWrapper(
+            F('end_date') - F('start_date'), 
+            output_field=fields.IntegerField()
         )
-        
-    def get_bookings_by_status_and_period(self, status, start_date, end_date):
-        """Получает бронирования по статусу за определённый период"""
-        return self.bookings.filter(
-            status=status,
-            start_date__gte=start_date,
-            end_date__lte=end_date
-        )
-        
-    def get_animals_without_bookings(self):
-        """Получает животных пользователя, у которых нет бронирований"""
-        return self.animals.filter(bookings__isnull=True)
-        
-    def get_most_recent_review(self):
-        return Review.objects.filter(
-            booking__user=self
-        ).order_by('-date').first()
-
-    class Meta:
-        verbose_name = "Пользователь"
-        verbose_name_plural = "Пользователи"
-        ordering = ['last_name', 'first_name']
+        return self.annotate(duration=duration).filter(duration__gte=min_days)
 
 
 class Animal(models.Model):
     """Модель для таблицы Animals (Животные)"""
-    CAT = 'cat'
     DOG = 'dog'
+    CAT = 'cat'
     OTHER = 'other'
     
     ANIMAL_TYPE_CHOICES = [
-        (CAT, "Кот"),
-        (DOG, "Собака"),
-        (OTHER, "Иное")
+        (DOG, 'Собака'),
+        (CAT, 'Кошка'),
+        (OTHER, 'Другое'),
     ]
     
     SIZE_SMALL = 'small'
@@ -121,29 +68,18 @@ class Animal(models.Model):
     SIZE_LARGE = 'large'
     
     ANIMAL_SIZE_CHOICES = [
-        (SIZE_SMALL, "Маленький"),
-        (SIZE_MEDIUM, "Средний"),
-        (SIZE_LARGE, "Крупный")
+        (SIZE_SMALL, 'Маленький'),
+        (SIZE_MEDIUM, 'Средний'),
+        (SIZE_LARGE, 'Большой'),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="animals", verbose_name="Владелец")
-    name = models.CharField(max_length=100, verbose_name="Кличка")
-    type = models.CharField(
-        max_length=50,
-        choices=ANIMAL_TYPE_CHOICES,
-        default=DOG,
-        verbose_name="Вид"
-    )
-    custom_type = models.CharField(max_length=100, blank=True, null=True, verbose_name="Другой вид (если Иное)")
-    breed = models.CharField(max_length=100, blank=True, null=True, verbose_name="Порода")
-    age = models.IntegerField(blank=True, null=True, verbose_name="Возраст")
-    size = models.CharField(
-        max_length=50,
-        choices=ANIMAL_SIZE_CHOICES,
-        default=SIZE_MEDIUM,
-        verbose_name="Размер"
-    )
-    special_needs = models.TextField(blank=True, null=True, verbose_name="Особые потребности")
+    name = models.CharField(max_length=50)
+    type = models.CharField(max_length=10, choices=ANIMAL_TYPE_CHOICES)
+    breed = models.CharField(max_length=50, blank=True)
+    age = models.IntegerField()
+    size = models.CharField(max_length=10, choices=ANIMAL_SIZE_CHOICES)
+    special_needs = models.TextField(blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='animals')
 
     def __str__(self):
         return self.name
@@ -202,6 +138,24 @@ class Animal(models.Model):
             dog_sitter__id=dogsitter_id
         ).exists()
 
+    def get_absolute_url(self):
+        """
+        Возвращает URL для просмотра детальной информации о животном
+        """
+        return reverse('animal_detail', args=[str(self.id)])
+    
+    def get_edit_url(self):
+        """
+        Возвращает URL для редактирования животного
+        """
+        return reverse('animal_edit', args=[str(self.id)])
+    
+    def get_owner_url(self):
+        """
+        Возвращает URL для просмотра профиля владельца животного
+        """
+        return reverse('user_detail', args=[str(self.user.id)])
+
     class Meta:
         verbose_name = "Животное"
         verbose_name_plural = "Животные"
@@ -210,8 +164,9 @@ class Animal(models.Model):
 
 class Service(models.Model):
     """Модель для таблицы Services (Услуги)"""
-    name = models.CharField(max_length=100, verbose_name="Название услуги")
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Цена")
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
         return self.name
@@ -223,38 +178,14 @@ class Service(models.Model):
 
 
 class DogSitter(models.Model):
-    first_name = models.CharField(
-        max_length=100,
-        verbose_name="Имя",
-        default="Unknown"  # Укажите значение по умолчанию
-    )
-    last_name = models.CharField(max_length=100, verbose_name="Фамилия")
-    middle_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="Отчество")
-    email = models.EmailField(
-        unique=True,
-        verbose_name="Электронная почта",
-        validators=[EmailValidator(message="Введите корректный адрес электронной почты.")]
-    )
-    phone = models.CharField(
-        max_length=15,
-        blank=True,
-        null=True,
-        verbose_name="Телефон",
-        validators=[
-            RegexValidator(
-                regex=r'^\+?1?\d{9,15}$',
-                message="Телефон должен быть в формате: '+79999999999'. Допускается до 15 цифр."
-            )
-        ]
-    )
-    bio = models.TextField(blank=True, null=True, verbose_name="О себе")
-    rating = models.FloatField(default=0, verbose_name="Рейтинг")
-    accepted_bookings = models.ManyToManyField("Booking", blank=True, related_name="dog_sitters", verbose_name="Принятые заказы")
-    registration_date = models.DateTimeField(default=timezone.now, verbose_name="Дата регистрации")
-    last_login = models.DateTimeField(blank=True, null=True, verbose_name="Последний вход")
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    rating = models.FloatField(default=0.0)
+    description = models.TextField(blank=True)
+    experience_years = models.IntegerField(default=0)
+    last_login = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
-        return f"Догситтер {self.last_name} {self.first_name}"
+        return f"Догситтер {self.user.last_name} {self.user.first_name}"
         
     def update_last_login(self):
         """Обновление времени последнего входа"""
@@ -304,11 +235,13 @@ class DogSitter(models.Model):
         ).distinct()
         
     def get_future_bookings(self):
-        """Получает предстоящие бронирования догситтера"""
-        today = timezone.now().date()
-        return self.bookings.filter(
-            start_date__gt=today
-        ).order_by('start_date')
+        return Booking.objects.future().filter(dog_sitter=self)
+        
+    def get_active_bookings(self):
+        return Booking.objects.active().filter(dog_sitter=self)
+        
+    def get_completed_bookings(self):
+        return Booking.objects.completed().filter(dog_sitter=self)
         
     def count_bookings_by_month(self, year, month):
         """Подсчитывает количество бронирований за указанный месяц"""
@@ -316,11 +249,101 @@ class DogSitter(models.Model):
             start_date__year=year,
             start_date__month=month
         ).count()
+        
+    def get_statistics(self):
+
+        return {
+            'bookings_stats': self.bookings.aggregate(
+                total_bookings=Count('id'),
+                completed_bookings=Count('id', filter=Q(status=Booking.STATUS_COMPLETED)),
+                cancelled_bookings=Count('id', filter=Q(status=Booking.STATUS_CANCELLED)),
+                total_earnings=Sum('total_price', filter=Q(status=Booking.STATUS_COMPLETED)),
+                avg_booking_price=Avg('total_price'),
+                avg_booking_duration=Avg(F('end_date') - F('start_date'))
+            ),
+            
+            'animals_stats': self.bookings.aggregate(
+                total_animals=Count('animals', distinct=True),
+                dogs_count=Count('animals', filter=Q(animals__type=Animal.DOG), distinct=True),
+                cats_count=Count('animals', filter=Q(animals__type=Animal.CAT), distinct=True),
+                small_animals=Count('animals', filter=Q(animals__size=Animal.SIZE_SMALL), distinct=True),
+                medium_animals=Count('animals', filter=Q(animals__size=Animal.SIZE_MEDIUM), distinct=True),
+                large_animals=Count('animals', filter=Q(animals__size=Animal.SIZE_LARGE), distinct=True)
+            ),
+            
+            # Статистика по отзывам
+            'reviews_stats': Review.objects.filter(booking__dog_sitter=self).aggregate(
+                total_reviews=Count('id'),
+                avg_rating=Avg('rating'),
+                five_star_reviews=Count('id', filter=Q(rating=5)),
+                four_star_reviews=Count('id', filter=Q(rating=4)),
+                three_star_reviews=Count('id', filter=Q(rating=3)),
+                two_star_reviews=Count('id', filter=Q(rating=2)),
+                one_star_reviews=Count('id', filter=Q(rating=1))
+            )
+        }
+        
+    def get_bookings_by_month(self):
+
+        return self.bookings.annotate(
+            month=TruncMonth('start_date')
+        ).values('month').annotate(
+            count=Count('id'),
+            total_revenue=Sum('total_price'),
+            avg_price=Avg('total_price')
+        ).order_by('-month')
+        
+    def get_clients_with_stats(self):
+        """
+        Получает статистику по клиентам догситтера с агрегированием данных
+        """
+        return User.objects.filter(
+            bookings__dog_sitter=self
+        ).annotate(
+            full_name=Concat('last_name', Value(' '), 'first_name', output_field=CharField()),
+            booking_count=Count('bookings', filter=Q(bookings__dog_sitter=self)),
+            last_booking=Max('bookings__start_date', filter=Q(bookings__dog_sitter=self)),
+            total_spent=Sum('bookings__total_price', filter=Q(
+                bookings__dog_sitter=self,
+                bookings__status=Booking.STATUS_COMPLETED
+            )),
+            animals_count=Count('animals', distinct=True),
+            has_reviewed=Case(
+                When(bookings__review__isnull=False, then=Value(True)),
+                default=Value(False),
+                output_field=models.BooleanField()
+            ),
+            avg_rating=Avg('bookings__review__rating', filter=Q(bookings__dog_sitter=self))
+        ).order_by('-booking_count')
+
+    def get_absolute_url(self):
+        """
+        Возвращает URL для просмотра детальной информации о догситтере
+        """
+        return reverse('dogsitter_detail', args=[str(self.id)])
+    
+    def get_edit_url(self):
+        """
+        Возвращает URL для редактирования профиля догситтера
+        """
+        return reverse('dogsitter_edit', args=[str(self.id)])
+    
+    def get_bookings_url(self):
+        """
+        Возвращает URL для просмотра всех бронирований догситтера
+        """
+        return reverse('dogsitter_bookings', args=[str(self.id)])
+    
+    def get_reviews_url(self):
+        """
+        Возвращает URL для просмотра всех отзывов о догситтере
+        """
+        return reverse('dogsitter_reviews', args=[str(self.id)])
 
     class Meta:
         verbose_name = "Догситтер"
         verbose_name_plural = "Догситтеры"
-        ordering = ['-rating', 'last_name']
+        ordering = ['-rating', 'user__last_name']
 
 
 class Booking(models.Model):
@@ -342,7 +365,7 @@ class Booking(models.Model):
     start_date = models.DateField(verbose_name="Дата начала")
     end_date = models.DateField(verbose_name="Дата окончания")
     services = models.ManyToManyField(Service, related_name="bookings", verbose_name="Услуги")
-    dog_sitter = models.ForeignKey(DogSitter, on_delete=models.SET_NULL, blank=True, null=True, related_name="bookings", verbose_name="Догситтер")
+    dog_sitter = models.ForeignKey(DogSitter, on_delete=models.CASCADE, related_name="bookings", verbose_name="Догситтер")
     total_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Общая стоимость", blank=True, null=True)
     created_at = models.DateTimeField(default=timezone.now, verbose_name="Дата создания")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Последнее обновление")
@@ -352,6 +375,9 @@ class Booking(models.Model):
         default=STATUS_PENDING,
         verbose_name="Статус бронирования"
     )
+    
+
+    objects = BookingManager()  
 
     def save(self, *args, **kwargs):
         # Сохраняем объект, чтобы получить id (если это новый объект)
@@ -426,6 +452,42 @@ class Booking(models.Model):
     def __str__(self):
         return f"Бронирование для {self.user.last_name} {self.user.first_name} с {self.start_date} по {self.end_date}"
 
+    def get_absolute_url(self):
+        """
+        Возвращает URL для просмотра детальной информации о бронировании
+        """
+        return reverse('booking_detail', args=[str(self.id)])
+    
+    def get_edit_url(self):
+        """
+        Возвращает URL для редактирования бронирования
+        """
+        return reverse('booking_edit', args=[str(self.id)])
+    
+    def get_cancel_url(self):
+        """
+        Возвращает URL для отмены бронирования
+        """
+        return reverse('booking_cancel', args=[str(self.id)])
+    
+    def get_complete_url(self):
+        """
+        Возвращает URL для завершения бронирования
+        """
+        return reverse('booking_complete', args=[str(self.id)])
+    
+    def get_user_url(self):
+        """
+        Возвращает URL для просмотра профиля пользователя
+        """
+        return reverse('user_detail', args=[str(self.user.id)])
+    
+    def get_dogsitter_url(self):
+        """
+        Возвращает URL для просмотра профиля догситтера
+        """
+        return reverse('dogsitter_detail', args=[str(self.dog_sitter.id)])
+
     class Meta:
         verbose_name = "Бронирование"
         verbose_name_plural = "Бронирования"
@@ -492,6 +554,30 @@ class Review(models.Model):
         
     def __str__(self):
         return f"Отзыв на бронирование {self.booking.id}"
+
+    def get_absolute_url(self):
+        """
+        Возвращает URL для просмотра детальной информации об отзыве
+        """
+        return reverse('review_detail', args=[str(self.id)])
+    
+    def get_edit_url(self):
+        """
+        Возвращает URL для редактирования отзыва
+        """
+        return reverse('review_edit', args=[str(self.id)])
+    
+    def get_booking_url(self):
+        """
+        Возвращает URL для просмотра бронирования, к которому относится отзыв
+        """
+        return reverse('booking_detail', args=[str(self.booking.id)])
+    
+    def get_dogsitter_url(self):
+        """
+        Возвращает URL для просмотра профиля догситтера, которому оставлен отзыв
+        """
+        return reverse('dogsitter_detail', args=[str(self.booking.dog_sitter.id)])
 
     class Meta:
         verbose_name = "Отзыв"
