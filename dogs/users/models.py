@@ -181,6 +181,12 @@ class User(AbstractUser):
     def get_delete_url(self):
         return reverse('user_delete', args=[str(self.id)])
 
+    def get_all_animal_names(self):
+        return self.animals.values_list('name', flat=True)
+        
+    def get_all_animal_names_with_types(self):
+        return self.animals.values_list('name', 'type')
+
     class Meta:
         verbose_name = "Пользователь"
         verbose_name_plural = "Пользователи"

@@ -124,7 +124,6 @@ class Animal(models.Model):
         return size_descriptions.get(self.size, "Неизвестный размер")
 
     def has_current_booking(self):
-        """Проверяет, есть ли у животного текущее бронирование"""
         today = timezone.now().date()
         return self.bookings.filter(
             start_date__lte=today,
@@ -133,37 +132,31 @@ class Animal(models.Model):
         ).exists()
     
     def get_last_booking(self):
-        """Возвращает последнее бронирование животного"""
         return self.bookings.order_by('-start_date').first()
         
     def get_bookings_by_period(self, start_date, end_date):
-        """Получает бронирования животного за указанный период"""
         return self.bookings.filter(
             start_date__gte=start_date,
             end_date__lte=end_date
         )
         
     def get_bookings_with_specific_dogsitter(self, dogsitter_name):
-        """Получает бронирования животного с догситтером, имя которого содержит указанный текст"""
         return self.bookings.filter(
             dog_sitter__first_name__icontains=dogsitter_name
         ).distinct()
         
     def get_future_bookings_count(self):
-        """Получает количество предстоящих бронирований"""
         today = timezone.now().date()
         return self.bookings.filter(
             start_date__gt=today
         ).count()
         
     def has_bookings_with_review(self):
-        """Проверяет, есть ли у животного бронирования с отзывами"""
         return self.bookings.filter(
             review__isnull=False
         ).exists()
         
     def has_been_with_dogsitter(self, dogsitter_id):
-        """Проверяет, был ли питомец у конкретного догситтера"""
         return self.bookings.filter(
             dog_sitter__id=dogsitter_id
         ).exists()
@@ -232,6 +225,12 @@ class DogSitter(models.Model):
     description = models.TextField(blank=True)
     experience_years = models.IntegerField(default=0)
     last_login = models.DateTimeField(default=timezone.now)
+    avatar = models.FileField(
+        upload_to=dogsitter_document_path,
+        null=True,
+        blank=True,
+        verbose_name="Фотография профиля"
+    )
     passport_scan = models.FileField(
         upload_to=dogsitter_document_path,
         null=True,
@@ -249,6 +248,18 @@ class DogSitter(models.Model):
         null=True,
         blank=True,
         verbose_name="Сертификат о квалификации"
+    )
+    website = models.URLField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name="Личный сайт"
+    )
+    social_media_links = models.URLField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name="Ссылки на соцсети"
     )
 
     def __str__(self):
@@ -374,7 +385,6 @@ class DogSitter(models.Model):
             one_star_reviews=Count('id', filter=Q(rating=1))
         )
         
-        # Обрабатываем None значения в статистике отзывов
         reviews_stats['total_reviews'] = reviews_stats.get('total_reviews', 0)
         reviews_stats['avg_rating'] = float(reviews_stats.get('avg_rating', 0) or 0)
         reviews_stats['five_star_reviews'] = reviews_stats.get('five_star_reviews', 0)
@@ -390,7 +400,6 @@ class DogSitter(models.Model):
         }
         
     def get_bookings_by_month(self):
-
         return self.bookings.annotate(
             month=TruncMonth('start_date')
         ).values('month').annotate(
@@ -400,9 +409,6 @@ class DogSitter(models.Model):
         ).order_by('-month')
         
     def get_clients_with_stats(self):
-        """
-        Получает статистику по клиентам догситтера с агрегированием данных
-        """
         return User.objects.filter(
             bookings__dog_sitter=self
         ).annotate(

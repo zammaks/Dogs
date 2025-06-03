@@ -6,8 +6,9 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.db import IntegrityError
-from .models import DogSitter, Booking, User
-from .serializers import DogSitterSerializer, BookingSerializer, UserSerializer
+from .models import DogSitter, Booking, User, Animal
+from .serializers import DogSitterSerializer, BookingSerializer, UserSerializer, AnimalSerializer
+from rest_framework.parsers import MultiPartParser, FormParser
 
 def index(request):
     return render(request, 'main/index.html')
@@ -93,4 +94,18 @@ def cancel_booking(request, pk):
         return Response(
             {'error': 'Booking not found'}, 
             status=status.HTTP_404_NOT_FOUND
-        ) 
+        )
+
+class AnimalViewSet(viewsets.ModelViewSet):
+    serializer_class = AnimalSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_queryset(self):
+        return Animal.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(user=self.request.user) 

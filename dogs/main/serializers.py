@@ -9,14 +9,19 @@ class UserSerializer(serializers.ModelSerializer):
 class AnimalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Animal
-        fields = ['id', 'name', 'type', 'breed', 'size']
+        fields = ['id', 'name', 'type', 'breed', 'size', 'age', 'photo', 'special_needs']
 
 class DogSitterSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
+    first_name = serializers.CharField(source='user.first_name')
+    last_name = serializers.CharField(source='user.last_name')
     
     class Meta:
         model = DogSitter
-        fields = ['id', 'user', 'rating', 'description', 'experience_years']
+        fields = [
+            'id', 'first_name', 'last_name', 
+            'rating', 'description', 'experience_years',
+            'avatar'
+        ]
 
 class BookingSerializer(serializers.ModelSerializer):
     animals = AnimalSerializer(many=True, read_only=True)

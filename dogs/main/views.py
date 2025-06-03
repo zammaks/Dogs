@@ -197,7 +197,7 @@ def api_animal_search(request):
             'breed': animal.breed,
             'owner': f"{animal.user.first_name} {animal.user.last_name}",
         }
-        for animal in animals[:20]  # Ограничиваем до 20 результатов
+        for animal in animals[:20] 
     ]
     
     return JsonResponse({'results': animals_data})
@@ -207,16 +207,13 @@ def advanced_filter_examples(request):
 
     expensive_bookings = Booking.objects.filter(total_price__gt=5000)
     
-    # 1.2 - Поиск по подстроке (contains)
-    # Поиск животных с породой, содержащей "терьер" (без учёта регистра)
-    terrier_dogs = Animal.objects.filter(breed__icontains="терьер")
+
+    terrier_dogs = Animal.objects.filter(breed__contains="терьер")
     
-    # 1.3 - Поиск по началу или концу строки
-    # Пользователи, чья фамилия начинается на "И"
+ 
     i_users = User.objects.filter(last_name__startswith="И")
     
-    # 1.4 - Работа с датами
-    # Бронирования за последние 7 дней
+ 
     week_ago = timezone.now().date() - timedelta(days=7)
     recent_bookings = Booking.objects.filter(start_date__gte=week_ago)
     

@@ -7,6 +7,7 @@ from . import views
 router = DefaultRouter()
 router.register(r'dogsitters', views_api.DogSitterViewSet)
 router.register(r'bookings', views_api.BookingViewSet, basename='booking')
+router.register(r'animals', views_api.AnimalViewSet, basename='animal')
 
 urlpatterns = [
     path('', views_api.index, name='index'),

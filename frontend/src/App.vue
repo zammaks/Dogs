@@ -5,6 +5,7 @@
       <div class="nav-links">
         <template v-if="isAuthenticated">
           <router-link to="/dogsitters">Догситтеры</router-link>
+          <router-link to="/my-animals">Мои животные</router-link>
           <router-link to="/bookings">Мои бронирования</router-link>
           <router-link to="/profile" class="user-info">
             {{ currentUser?.first_name }} {{ currentUser?.last_name }}

@@ -5,6 +5,7 @@ import Register from '../components/Register.vue'
 import DogSitterList from '../components/DogSitterList.vue'
 import BookingList from '../components/BookingList.vue'
 import UserProfile from '../components/UserProfile.vue'
+import MyAnimals from '../components/MyAnimals.vue'
 import store from '../store'
 
 const routes = [
@@ -25,6 +26,12 @@ const routes = [
     name: 'Register',
     component: Register,
     meta: { requiresAuth: false }
+  },
+  {
+    path: '/my-animals',
+    name: 'MyAnimals',
+    component: MyAnimals,
+    meta: { requiresAuth: true }
   },
   {
     path: '/dogsitters',
