@@ -1,0 +1,578 @@
+/* Глобальные стили для компонентов с учетом специальных возможностей */
+
+/* Применение цветов ко всем элементам */
+:root[data-color-scheme] * {
+  color: var(--text-color) !important;
+}
+
+/* Базовые размеры шрифта с исключениями */
+:root[data-font-size="small"] *:not(.card-icon):not(.stat-icon):not(.navbar-brand):not(.logo-text) {
+  font-size: 14px !important;
+}
+
+:root[data-font-size="small"] h1 { font-size: 28px !important; }
+:root[data-font-size="small"] h2 { font-size: 24px !important; }
+:root[data-font-size="small"] h3 { font-size: 21px !important; }
+:root[data-font-size="small"] h4 { font-size: 18px !important; }
+:root[data-font-size="small"] h5 { font-size: 16px !important; }
+:root[data-font-size="small"] h6 { font-size: 14px !important; }
+
+:root[data-font-size="medium"] *:not(.card-icon):not(.stat-icon):not(.navbar-brand):not(.logo-text):not(.welcome-message) {
+  font-size: 18px !important;
+}
+
+:root[data-font-size="medium"] h1 { font-size: 36px !important; }
+:root[data-font-size="medium"] h2 { font-size: 32px !important; }
+:root[data-font-size="medium"] h3 { font-size: 28px !important; }
+:root[data-font-size="medium"] h4 { font-size: 24px !important; }
+:root[data-font-size="medium"] h5 { font-size: 20px !important; }
+:root[data-font-size="medium"] h6 { font-size: 18px !important; }
+
+:root[data-font-size="large"] *:not(.card-icon):not(.stat-icon):not(.navbar-brand):not(.logo-text) {
+  font-size: 24px !important;
+}
+
+:root[data-font-size="large"] h1 { font-size: 48px !important; }
+:root[data-font-size="large"] h2 { font-size: 42px !important; }
+:root[data-font-size="large"] h3 { font-size: 36px !important; }
+:root[data-font-size="large"] h4 { font-size: 32px !important; }
+:root[data-font-size="large"] h5 { font-size: 28px !important; }
+:root[data-font-size="large"] h6 { font-size: 24px !important; }
+
+/* Специальные размеры для иконок */
+:root[data-font-size] .card-icon {
+  font-size: 4rem !important;
+}
+
+:root[data-font-size] .stat-icon {
+  font-size: 4rem !important;
+}
+
+:root[data-font-size] .navbar-brand {
+  font-size: 2rem !important;
+}
+
+:root[data-font-size] .logo-text {
+  font-size: 2rem !important;
+}
+
+/* Размеры для мобильных устройств */
+@media (max-width: 768px) {
+  :root[data-font-size] .card-icon {
+    font-size: 3rem !important;
+  }
+
+  :root[data-font-size] .stat-icon {
+    font-size: 3rem !important;
+  }
+
+  :root[data-font-size] .navbar-brand {
+    font-size: 1.75rem !important;
+  }
+
+  :root[data-font-size] .logo-text {
+    font-size: 1.75rem !important;
+  }
+}
+
+/* Исключения для иконок и специальных элементов */
+:root[data-font-size] .icon,
+:root[data-font-size] i,
+:root[data-font-size] .fa,
+:root[data-font-size] .material-icons {
+  font-size: inherit !important;
+}
+
+/* Цветовые схемы */
+:root[data-color-scheme="default"] {
+  --background-color: #ffffff;
+  --text-color: #2c3e50;
+  --primary-color: #42b983;
+  --header-bg: #42b983;
+  --header-text: #ffffff;
+  --link-color: #42b983;
+  --button-text: #ffffff;
+  --border-color: #42b983;
+  --hover-color: #3aa876;
+  --card-bg: #ffffff;
+  --card-border: #e0e0e0;
+  --sort-bg: #f5f5f5;
+  --sort-text: #2c3e50;
+  --sort-border: #e0e0e0;
+  --sort-hover: #e9e9e9;
+}
+
+:root[data-color-scheme="high-contrast"] {
+  --background-color: #000000;
+  --text-color: #ffffff;
+  --primary-color: #ffffff;
+  --header-bg: #000000;
+  --header-text: #ffffff;
+  --link-color: #ffffff;
+  --button-text: #000000;
+  --border-color: #ffffff;
+  --hover-color: #ffff00;
+  --card-bg: #000000;
+  --card-border: #ffffff;
+  --sort-bg: #000000;
+  --sort-text: #ffffff;
+  --sort-border: #ffffff;
+  --sort-hover: #333333;
+  --sort-panel-bg: #000000;
+  --sort-panel-text: #ffffff;
+  --sort-panel-border: #ffffff;
+  --sort-panel-hover: #333333;
+}
+
+:root[data-color-scheme="black-white"] {
+  --background-color: #ffffff;
+  --text-color: #000000;
+  --primary-color: #000000;
+  --header-bg: #000000;
+  --header-text: #ffffff !important;
+  --link-color: #000000;
+  --button-text: #ffffff !important;
+  --border-color: #000000;
+  --hover-color: #666666;
+  --card-bg: #ffffff;
+  --card-border: #000000;
+  --sort-bg: #ffffff;
+  --sort-text: #000000;
+  --sort-border: #000000;
+  --sort-hover: #f0f0f0;
+  --sort-panel-bg: #ffffff;
+  --sort-panel-text: #000000;
+  --sort-panel-border: #000000;
+  --sort-panel-hover: #f0f0f0;
+}
+
+:root[data-color-scheme="dark"] {
+  --background-color: #1a1a1a;
+  --text-color: #ffffff;
+  --primary-color: #42b983;
+  --header-bg: #000000;
+  --header-text: #ffffff;
+  --link-color: #42b983;
+  --button-text: #ffffff;
+  --border-color: #42b983;
+  --hover-color: #3aa876;
+  --card-bg: #2c3e50;
+  --card-border: #42b983;
+  --sort-bg: #2c3e50;
+  --sort-text: #ffffff;
+  --sort-border: #42b983;
+  --sort-hover: #3a4f63;
+  --sort-panel-bg: #2c3e50;
+  --sort-panel-text: #ffffff;
+  --sort-panel-border: #42b983;
+  --sort-panel-hover: #3a4f63;
+}
+
+/* Стили для навбара */
+.navbar {
+  background-color: var(--header-bg) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.navbar * {
+  color: var(--header-text) !important;
+}
+
+/* Стили для карточек */
+.card,
+.stat-card,
+.nav-card,
+.booking-card,
+.sitter-card,
+.pet-card,
+.animal-card {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--card-border) !important;
+  color: var(--text-color) !important;
+}
+
+/* Стили для карточек догситтеров */
+.dogsitter-card,
+.dogsitters-grid .dogsitter-card {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--card-border) !important;
+  color: var(--text-color) !important;
+}
+
+/* Стили для форм */
+input, 
+textarea, 
+select {
+  background-color: var(--background-color) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+/* Стили для заголовков */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-color) !important;
+}
+
+/* Стили для статистики */
+.stat-value {
+  color: var(--primary-color) !important;
+}
+
+.stat-label {
+  color: var(--text-color) !important;
+}
+
+/* Стили для навигационных карточек */
+.nav-card h3 {
+  color: var(--primary-color) !important;
+}
+
+.nav-card p {
+  color: var(--text-color) !important;
+}
+
+/* Стили для бронирований */
+.booking-header h3 {
+  color: var(--text-color) !important;
+}
+
+.booking-details {
+  color: var(--text-color) !important;
+}
+
+.booking-price {
+  color: var(--primary-color) !important;
+}
+
+/* Стили для догситтеров */
+.sitter-info h3 {
+  color: var(--text-color) !important;
+}
+
+/* Стили для поиска */
+.search-input {
+  background-color: var(--background-color) !important;
+  color: var(--text-color) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.search-suggestions {
+  background-color: var(--background-color) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.suggestion-item:hover {
+  background-color: var(--primary-color) !important;
+  color: var(--button-text) !important;
+}
+
+/* Стили для изображений */
+:root.hide-images img,
+:root.hide-images .avatar,
+:root.hide-images .photo,
+:root.hide-images .image,
+:root.hide-images .picture,
+:root.hide-images [role="img"],
+:root.hide-images svg:not(.accessibility-icon) {
+  display: none !important;
+}
+
+:root.hide-images .image-container,
+:root.hide-images .avatar-container,
+:root.hide-images .photo-container {
+  background: #eee !important;
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:root.hide-images .image-container::after,
+:root.hide-images .avatar-container::after,
+:root.hide-images .photo-container::after {
+  content: 'Изображение скрыто';
+  color: var(--text-color);
+  font-size: 14px;
+}
+
+/* Стили для списков */
+ul, ol {
+  color: var(--text-color) !important;
+}
+
+/* Стили для фокуса */
+*:focus {
+  outline: 2px solid var(--primary-color) !important;
+  outline-offset: 2px;
+}
+
+/* Стили для выделения текста */
+::selection {
+  background-color: var(--primary-color) !important;
+  color: var(--button-text) !important;
+}
+
+/* Стили для скроллбара */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-color) !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-color) !important;
+  border-radius: 6px;
+}
+
+/* Стили для подсказок */
+[title]:hover::after {
+  background-color: var(--text-color) !important;
+  color: var(--background-color) !important;
+}
+
+/* Стили для рейтинга */
+.rating .stars {
+  color: var(--primary-color) !important;
+}
+
+/* Стили для статусов */
+.status {
+  border: 1px solid var(--border-color) !important;
+}
+
+.status.pending {
+  background-color: var(--background-color) !important;
+  color: var(--text-color) !important;
+}
+
+.status.confirmed {
+  background-color: var(--primary-color) !important;
+  color: var(--button-text) !important;
+}
+
+/* Стили для переключателей */
+.switch .slider {
+  background-color: var(--border-color) !important;
+}
+
+.switch input:checked + .slider {
+  background-color: var(--primary-color) !important;
+}
+
+.slider:before {
+  background-color: var(--button-text) !important;
+}
+
+/* Стили для переключателя в разных темах */
+:root[data-color-scheme="high-contrast"] .switch .slider {
+  background-color: #666 !important;
+  border: 1px solid #fff !important;
+}
+
+:root[data-color-scheme="high-contrast"] .switch input:checked + .slider {
+  background-color: #fff !important;
+}
+
+:root[data-color-scheme="high-contrast"] .switch .slider:before {
+  background-color: #fff !important;
+}
+
+:root[data-color-scheme="high-contrast"] .switch input:checked + .slider:before {
+  background-color: #000 !important;
+}
+
+:root[data-color-scheme="black-white"] .switch .slider {
+  background-color: #666 !important;
+  border: 1px solid #000 !important;
+}
+
+:root[data-color-scheme="black-white"] .switch input:checked + .slider {
+  background-color: #000 !important;
+}
+
+:root[data-color-scheme="black-white"] .switch .slider:before {
+  background-color: #fff !important;
+}
+
+/* Стили для элементов сортировки */
+.sort-container,
+.sort-select,
+.sort-dropdown,
+.filter-container,
+.filter-select,
+.filter-dropdown {
+  background-color: var(--sort-bg) !important;
+  color: var(--sort-text) !important;
+  border: 1px solid var(--sort-border) !important;
+}
+
+.sort-option,
+.filter-option,
+.dropdown-item {
+  background-color: var(--sort-bg) !important;
+  color: var(--sort-text) !important;
+}
+
+.sort-option:hover,
+.filter-option:hover,
+.dropdown-item:hover {
+  background-color: var(--sort-hover) !important;
+}
+
+/* Стили для выпадающего списка в select */
+.sort-select option,
+select option,
+.sort-panel select option {
+  background-color: var(--sort-bg) !important;
+  color: var(--sort-text) !important;
+}
+
+/* Стили при наведении и фокусе */
+:root[data-color-scheme="high-contrast"] .sort-select:hover,
+:root[data-color-scheme="high-contrast"] .sort-direction:hover,
+:root[data-color-scheme="high-contrast"] select:hover,
+:root[data-color-scheme="high-contrast"] .sort-panel select:hover {
+  background-color: #333333 !important;
+}
+
+:root[data-color-scheme="dark"] .sort-select:hover,
+:root[data-color-scheme="dark"] .sort-direction:hover,
+:root[data-color-scheme="dark"] select:hover,
+:root[data-color-scheme="dark"] .sort-panel select:hover {
+  background-color: #3a4f63 !important;
+}
+
+/* Стили для панели сортировки */
+.sort-panel {
+  background-color: var(--sort-panel-bg) !important;
+  color: var(--sort-panel-text) !important;
+  border: 1px solid var(--sort-panel-border) !important;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.sort-panel label {
+  color: var(--sort-panel-text) !important;
+}
+
+.sort-select,
+.sort-direction,
+select,
+.sort-panel select {
+  background-color: var(--sort-panel-bg) !important;
+  color: var(--sort-panel-text) !important;
+  border: 1px solid var(--sort-panel-border) !important;
+}
+
+/* Стили для выпадающего списка в select */
+.sort-select option,
+select option,
+.sort-panel select option {
+  background-color: var(--sort-panel-bg) !important;
+  color: var(--sort-panel-text) !important;
+}
+
+/* Стили при наведении и фокусе */
+:root[data-color-scheme="high-contrast"] .sort-select:hover,
+:root[data-color-scheme="high-contrast"] .sort-direction:hover,
+:root[data-color-scheme="high-contrast"] select:hover,
+:root[data-color-scheme="high-contrast"] .sort-panel select:hover {
+  background-color: #333333 !important;
+}
+
+:root[data-color-scheme="dark"] .sort-select:hover,
+:root[data-color-scheme="dark"] .sort-direction:hover,
+:root[data-color-scheme="dark"] select:hover,
+:root[data-color-scheme="dark"] .sort-panel select:hover {
+  background-color: #3a4f63 !important;
+}
+
+/* Специальные стили для черно-белой темы */
+:root[data-color-scheme="black-white"] .navbar *,
+:root[data-color-scheme="black-white"] .nav-link,
+:root[data-color-scheme="black-white"] .navbar-brand {
+  color: #ffffff !important;
+}
+
+:root[data-color-scheme="black-white"] .btn,
+:root[data-color-scheme="black-white"] button {
+  color: #ffffff !important;
+  background-color: #000000 !important;
+}
+
+:root[data-color-scheme="black-white"] .accessibility-panel,
+:root[data-color-scheme="black-white"] .sort-panel {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+
+:root[data-color-scheme="black-white"] .accessibility-panel *,
+:root[data-color-scheme="black-white"] .sort-panel * {
+  color: #000000 !important;
+}
+
+:root[data-color-scheme="black-white"] .accessibility-panel button,
+:root[data-color-scheme="black-white"] .sort-panel button {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 1px solid #000000 !important;
+}
+
+/* Специальные стили для высококонтрастной темы */
+:root[data-color-scheme="high-contrast"] .btn,
+:root[data-color-scheme="high-contrast"] button,
+:root[data-color-scheme="high-contrast"] .nav-link {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+}
+
+:root[data-color-scheme="high-contrast"] .btn:hover,
+:root[data-color-scheme="high-contrast"] button:hover,
+:root[data-color-scheme="high-contrast"] .nav-link:hover {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+:root[data-color-scheme="high-contrast"] .accessibility-panel {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+}
+
+:root[data-color-scheme="high-contrast"] .accessibility-panel button {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+}
+
+:root[data-color-scheme="high-contrast"] .accessibility-panel button:hover {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Специальные стили для кнопки выхода и сброса */
+:root[data-color-scheme="high-contrast"] .logout-button,
+:root[data-color-scheme="high-contrast"] .reset-button,
+:root[data-color-scheme="high-contrast"] button[type="reset"] {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+}
+
+:root[data-color-scheme="high-contrast"] .logout-button:hover,
+:root[data-color-scheme="high-contrast"] .reset-button:hover,
+:root[data-color-scheme="high-contrast"] button[type="reset"]:hover {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Стили для текста в панели доступности */
+:root[data-color-scheme="high-contrast"] .accessibility-panel label,
+:root[data-color-scheme="high-contrast"] .accessibility-panel span,
+:root[data-color-scheme="high-contrast"] .accessibility-panel p {
+  color: #ffffff !important;
+}

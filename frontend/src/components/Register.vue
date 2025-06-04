@@ -48,6 +48,9 @@
       <button type="submit" class="submit-button">
         Зарегистрироваться
       </button>
+      <div class="login-link">
+        Уже есть аккаунт? <router-link to="/login">Войдите</router-link>
+      </div>
     </form>
   </div>
 </template>
@@ -134,5 +137,21 @@ export default {
 
 .submit-button:hover {
   background-color: #3aa876;
+}
+
+.login-link {
+  margin-top: 1rem;
+  text-align: center;
+  color: var(--text-color);
+}
+
+.login-link a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.login-link a:hover {
+  text-decoration: underline;
 }
 </style> 

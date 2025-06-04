@@ -383,10 +383,17 @@ export default {
 </script>
 
 <style scoped>
+/* Базовые стили для профиля */
 .profile-container {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 2rem;
+  padding: 20px;
+  margin: 20px auto;
+  max-width: 800px;
+}
+
+.profile-header,
+.profile-section h2,
+.profile-section h3 {
+  margin-bottom: 1rem;
 }
 
 .loading, .error {
@@ -711,5 +718,55 @@ export default {
 .upload-button:disabled {
   background-color: #a8d5c2;
   cursor: not-allowed;
+}
+
+.user-info-card {
+  background-color: var(--card-bg) !important;
+  border: 1px solid var(--card-border) !important;
+  color: var(--text-color) !important;
+  padding: 2rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.profile-header,
+.profile-info,
+.profile-details {
+  color: var(--text-color) !important;
+}
+
+.profile-section h2,
+.profile-section h3,
+.profile-info h1,
+.profile-info h2,
+.profile-details p,
+.profile-details span {
+  color: var(--text-color) !important;
+}
+
+:root[data-color-scheme="dark"] .profile-container,
+:root[data-color-scheme="dark"] .user-info-card {
+  background-color: #2c3e50 !important;
+  border-color: #42b983 !important;
+}
+
+:root[data-color-scheme="dark"] .profile-header,
+:root[data-color-scheme="dark"] .profile-info,
+:root[data-color-scheme="dark"] .profile-details,
+:root[data-color-scheme="dark"] .user-info-card * {
+  color: #ffffff !important;
+}
+
+:root[data-color-scheme="high-contrast"] .profile-container,
+:root[data-color-scheme="high-contrast"] .user-info-card {
+  background-color: #000000 !important;
+  border: 2px solid #ffffff !important;
+}
+
+:root[data-color-scheme="high-contrast"] .profile-header,
+:root[data-color-scheme="high-contrast"] .profile-info,
+:root[data-color-scheme="high-contrast"] .profile-details,
+:root[data-color-scheme="high-contrast"] .user-info-card * {
+  color: #ffffff !important;
 }
 </style> 

@@ -1,5 +1,5 @@
 <template>
-  <button @click="handleLogout" class="logout-button">
+  <button @click="logout" class="logout-button">
     Выйти из аккаунта
   </button>
 </template>
@@ -14,13 +14,13 @@ export default {
     const store = useStore()
     const router = useRouter()
 
-    const handleLogout = () => {
-      store.dispatch('auth/logout')
+    const logout = async () => {
+      await store.dispatch('auth/logout')
       router.push('/login')
     }
 
     return {
-      handleLogout
+      logout
     }
   }
 }
@@ -29,14 +29,13 @@ export default {
 <style scoped>
 .logout-button {
   padding: 8px 16px;
-  background-color: #dc3545;
-  color: white;
-  border: none;
   border-radius: 4px;
   cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
 }
 
 .logout-button:hover {
-  background-color: #c82333;
+  opacity: 0.9;
 }
 </style> 

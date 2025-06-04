@@ -1,5 +1,6 @@
 <template>
   <div id="app">
+    <Accessibility />
     <nav class="navbar">
       <router-link to="/" class="nav-brand">DogSitters</router-link>
       <button class="burger-menu" @click="isMenuOpen = !isMenuOpen">
@@ -32,11 +33,13 @@
 import { computed, ref } from 'vue'
 import { useStore } from 'vuex'
 import LogoutButton from './components/LogoutButton.vue'
+import Accessibility from './components/Accessibility.vue'
 
 export default {
   name: 'App',
   components: {
-    LogoutButton
+    LogoutButton,
+    Accessibility
   },
   setup() {
     const store = useStore()
@@ -59,8 +62,32 @@ export default {
 </script>
 
 <style>
+:root {
+  --base-font-size: 16px;
+  --background-color: #ffffff;
+  --text-color: #2c3e50;
+  --primary-color: #42b983;
+  --header-bg: #42b983;
+  --header-text: white;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  font-size: var(--base-font-size);
+}
+
+* {
+  box-sizing: border-box;
+  transition: background-color 0.3s, color 0.3s;
+}
+
 #app {
-  font-family: Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
@@ -73,8 +100,8 @@ export default {
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
-  background-color: #42b983;
-  color: white;
+  background-color: var(--header-bg);
+  color: var(--header-text);
   position: fixed;
   top: 0;
   left: 0;
@@ -83,9 +110,9 @@ export default {
 }
 
 .nav-brand {
-  font-size: 1.5rem;
+  font-size: calc(var(--base-font-size) * 1.2);
   font-weight: bold;
-  color: white;
+  color: var(--header-text);
   text-decoration: none;
 }
 
@@ -105,7 +132,7 @@ export default {
 .burger-menu span {
   width: 100%;
   height: 2px;
-  background-color: white;
+  background-color: var(--header-text);
   transition: all 0.3s ease;
 }
 
@@ -116,7 +143,7 @@ export default {
 }
 
 .nav-links a {
-  color: white;
+  color: var(--header-text);
   text-decoration: none;
   padding: 4px 8px;
   border-radius: 4px;
@@ -128,7 +155,7 @@ export default {
 }
 
 .user-info {
-  color: white;
+  color: var(--header-text);
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   display: flex;

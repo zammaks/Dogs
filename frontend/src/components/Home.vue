@@ -437,9 +437,10 @@ export default {
 }
 
 .welcome-message {
-  font-size: 2.5rem;
+  font-size: 3.5rem;
   color: #2c3e50;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  font-weight: bold;
 }
 
 .welcome-subtitle {
@@ -459,32 +460,41 @@ export default {
   border-radius: 12px;
   padding: 2rem;
   text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   cursor: pointer;
-  border: 2px solid #eee;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 250px;
 }
 
 .nav-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-  border-color: #42b983;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
 .card-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  transition: transform 0.3s ease;
+}
+
+.nav-card:hover .card-icon {
+  transform: scale(1.1);
 }
 
 .nav-card h3 {
-  color: #42b983;
-  margin-bottom: 0.8rem;
-  font-size: 1.4rem;
+  font-size: 1.5rem;
+  color: #2c3e50;
+  margin-bottom: 1rem;
 }
 
 .nav-card p {
   color: #666;
-  margin: 0;
-  line-height: 1.5;
+  font-size: 1.1rem;
+  line-height: 1.4;
 }
 
 .popular-sitters {
@@ -768,6 +778,27 @@ export default {
   .sitters-grid {
     grid-template-columns: 1fr;
   }
+
+  .nav-card {
+    min-height: 200px;
+    padding: 1.5rem;
+  }
+
+  .card-icon {
+    font-size: 3rem;
+  }
+
+  .stat-icon {
+    font-size: 1rem ;
+  }
+
+  .navbar-brand {
+    font-size: 1.5rem;
+  }
+
+  .logo-text {
+    font-size: 1.5rem;
+  }
 }
 
 .search-container {
@@ -782,7 +813,7 @@ export default {
 }
 
 .search-input {
-  width: 90%;
+  width: 100%;
   padding: 1rem 2.5rem 1rem 1rem;
   border: 2px solid #eee;
   border-radius: 8px;
@@ -914,8 +945,13 @@ export default {
 }
 
 .stat-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
+  font-size: rem;
+  margin-bottom: 1.5rem;
+  transition: transform 0.3s ease;
+}
+
+.stat-card:hover .stat-icon {
+  transform: scale(1.1);
 }
 
 .stat-value {
@@ -929,29 +965,6 @@ export default {
 .stat-label {
   color: #666;
   font-size: 1.1rem;
-}
-
-@media (max-width: 768px) {
-  .statistics-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-  
-  .stat-card {
-    padding: 1.5rem;
-  }
-  
-  .stat-icon {
-    font-size: 2rem;
-  }
-  
-  .stat-value {
-    font-size: 2rem;
-  }
-  
-  .stat-label {
-    font-size: 1rem;
-  }
 }
 
 .statistics-title {
@@ -994,5 +1007,29 @@ export default {
   top: 0;
   left: 0;
   white-space: nowrap;
+}
+
+/* Стили для логотипа */
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--text-color);
+  transition: transform 0.3s ease;
+}
+
+.navbar-brand:hover {
+  transform: scale(1.05);
+}
+
+.logo-text {
+  font-size: 2rem;
+  font-weight: bold;
+  background: linear-gradient(45deg, #42b983, #2c3e50);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  padding: 0.5rem;
 }
 </style> 

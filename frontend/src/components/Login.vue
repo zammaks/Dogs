@@ -45,6 +45,9 @@
       <button type="submit" class="submit-button" :disabled="loading">
         {{ loading ? 'Вход...' : 'Войти' }}
       </button>
+      <div class="register-link">
+        Нет аккаунта? <router-link to="/register">Зарегистрируйтесь</router-link>
+      </div>
     </form>
   </div>
 </template>
@@ -175,5 +178,21 @@ export default {
 
 .submit-button:not(:disabled):hover {
   background-color: #3aa876;
+}
+
+.register-link {
+  margin-top: 1rem;
+  text-align: center;
+  color: var(--text-color);
+}
+
+.register-link a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.register-link a:hover {
+  text-decoration: underline;
 }
 </style> 

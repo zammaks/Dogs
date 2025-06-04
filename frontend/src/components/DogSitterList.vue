@@ -461,7 +461,7 @@ export default {
 }
 
 .search-input {
-  width: 90%;
+  width: 100%;
   padding: 12px 45px 12px 15px;
   border: 2px solid #ddd;
   border-radius: 8px;
