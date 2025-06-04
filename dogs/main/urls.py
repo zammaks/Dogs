@@ -8,6 +8,7 @@ router = DefaultRouter()
 router.register(r'dogsitters', views_api.DogSitterViewSet)
 router.register(r'bookings', views_api.BookingViewSet, basename='booking')
 router.register(r'animals', views_api.AnimalViewSet, basename='animal')
+router.register(r'services', views_api.ServiceViewSet, basename='service')
 
 urlpatterns = [
     path('', views_api.index, name='index'),
@@ -19,6 +20,7 @@ urlpatterns = [
     path('api/users/me/photos/<int:pk>/', UserPhotoDetailView.as_view(), name='user-photo-detail'),
     path('api/bookings/<int:pk>/cancel/', views_api.cancel_booking, name='booking-cancel'),
     path('api/users/me/delete/', DeleteAccountView.as_view(), name='delete-account'),
+    path('api/statistics/', views_api.get_statistics, name='api-statistics'),
     
     # Маршруты для животных
     path('animals/<int:pk>/delete/', views.animal_delete, name='animal_delete'),
@@ -36,4 +38,5 @@ urlpatterns = [
     # Маршруты для отзывов
     path('bookings/<int:booking_id>/review/create/', 
          views.create_review, name='create_review'),
+    path('api/bookings/<int:pk>/', views.booking_detail_api, name='booking_detail_api'),
 ] 

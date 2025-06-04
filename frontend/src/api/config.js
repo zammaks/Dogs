@@ -1,4 +1,5 @@
 const API_URL = 'http://localhost:8000/api'
+const MEDIA_URL = 'http://localhost:8000/media'
 
 export const endpoints = {
   login: `${API_URL}/auth/login/`,
@@ -6,6 +7,8 @@ export const endpoints = {
   dogsitters: `${API_URL}/dogsitters/`,
   bookings: `${API_URL}/bookings/`
 }
+
+export const DEFAULT_AVATAR = '/images/default_avatar.jpg'
 
 // Добавляем конфигурацию для заголовков запросов
 export const getHeaders = () => {

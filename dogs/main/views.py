@@ -9,6 +9,9 @@ from django.db.models import Q, Count, Avg, Sum, F, ExpressionWrapper, fields
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models.functions import TruncMonth, Concat
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from .models import User, Animal, Booking, DogSitter, Service, Review
 
@@ -806,3 +809,76 @@ def cancel_booking_with_refund(request, booking_id):
     except Exception as e:
         messages.error(request, "Произошла ошибка при отмене бронирования")
         return redirect('booking_detail', pk=booking_id)
+
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def booking_detail_api(request, pk):
+    """
+    API endpoint для получения и обновления информации о бронировании
+    """
+    booking = get_object_or_404(Booking, pk=pk)
+    
+    # Проверяем, что пользователь имеет доступ к этому бронированию
+    if booking.user != request.user and booking.dog_sitter.user != request.user:
+        return Response({"error": "У вас нет доступа к этому бронированию"}, status=403)
+    
+    if request.method == 'GET':
+        # Получаем связанные данные
+        booking_data = {
+            'id': booking.id,
+            'start_date': booking.start_date,
+            'end_date': booking.end_date,
+            'status': booking.status,
+            'total_price': str(booking.total_price),
+            'dog_sitter': {
+                'id': booking.dog_sitter.id,
+                'user': {
+                    'first_name': booking.dog_sitter.user.first_name,
+                    'last_name': booking.dog_sitter.user.last_name
+                }
+            },
+            'animals': [{
+                'id': animal.id,
+                'name': animal.name,
+                'type': animal.type,
+                'size': animal.size
+            } for animal in booking.animals.all()],
+            'services': [{
+                'id': service.id,
+                'name': service.name,
+                'price': str(service.price)
+            } for service in booking.services.all()]
+        }
+        return Response(booking_data)
+    
+    elif request.method == 'PATCH':
+        # Проверяем, можно ли редактировать бронирование
+        if booking.status not in ['pending', 'confirmed']:
+            return Response({"error": "Нельзя редактировать завершенное или отмененное бронирование"}, status=400)
+        
+        # Обновляем данные
+        if 'start_date' in request.data:
+            booking.start_date = request.data['start_date']
+        if 'end_date' in request.data:
+            booking.end_date = request.data['end_date']
+        if 'services' in request.data:
+            booking.services.set(request.data['services'])
+        
+        try:
+            booking.save()
+            
+            # Возвращаем обновленные данные
+            return Response({
+                'id': booking.id,
+                'start_date': booking.start_date,
+                'end_date': booking.end_date,
+                'status': booking.status,
+                'total_price': str(booking.total_price),
+                'services': [{
+                    'id': service.id,
+                    'name': service.name,
+                    'price': str(service.price)
+                } for service in booking.services.all()]
+            })
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)

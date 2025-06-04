@@ -6,8 +6,9 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.db import IntegrityError
-from .models import DogSitter, Booking, User, Animal
-from .serializers import DogSitterSerializer, BookingSerializer, UserSerializer, AnimalSerializer
+from django.db.models import Q, Count, Avg
+from .models import DogSitter, Booking, User, Animal, Service, Review
+from .serializers import DogSitterSerializer, BookingSerializer, UserSerializer, AnimalSerializer, ServiceSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 
 def index(request):
@@ -108,4 +109,32 @@ class AnimalViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
     def perform_update(self, serializer):
-        serializer.save(user=self.request.user) 
+        serializer.save(user=self.request.user)
+
+class ServiceViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Service.objects.all()
+    serializer_class = ServiceSerializer
+    permission_classes = [IsAuthenticated]
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_statistics(request):
+    """
+    API endpoint для получения общей статистики
+    """
+    # Получаем статистику по бронированиям
+    completed_bookings = Booking.objects.filter(status='completed').count()
+    
+    # Получаем количество догситтеров
+    dogsitters = DogSitter.objects.all()
+    dogsitters_count = dogsitters.count()
+    
+    # Простое вычисление среднего рейтинга
+    total_rating = sum(sitter.rating for sitter in dogsitters)
+    avg_rating = total_rating / dogsitters_count if dogsitters_count > 0 else 0
+    
+    return Response({
+        'completed_bookings': completed_bookings,
+        'dogsitters_count': dogsitters_count,
+        'avg_rating': round(avg_rating, 1)
+    }) 

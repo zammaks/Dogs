@@ -19,7 +19,7 @@
 
     <!-- Список животных -->
     <div v-else-if="animals && animals.length > 0" class="animals-list">
-      <div v-for="animal in animals" :key="animal.id" class="animal-card">
+      <div v-for="animal in animals" :key="animal.id" class="animal-card" @click="viewAnimalDetails(animal.id)">
         <div class="animal-photo">
           <img v-if="animal.photo" :src="getPhotoUrl(animal.photo)" :alt="animal.name">
           <img v-else :src="getDefaultAnimalPhoto(animal.type)" :alt="animal.name">
@@ -31,10 +31,10 @@
           <p><strong>Возраст:</strong> {{ getAgeString(animal.age) }}</p>
         </div>
         <div class="button-group">
-          <button class="btn btn-primary" @click="editAnimal(animal)">
+          <button class="btn btn-primary" @click.stop="editAnimal(animal)">
             Редактировать
           </button>
-          <button class="btn btn-danger" @click="openDeleteModal(animal)">
+          <button class="btn btn-danger" @click.stop="openDeleteModal(animal)">
             Удалить
           </button>
         </div>
@@ -149,10 +149,12 @@
 <script>
 import axios from 'axios'
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 
 export default {
   name: 'MyAnimals',
   setup() {
+    const router = useRouter()
     const animals = ref([])
     const showModal = ref(false)
     const loading = ref(false)
@@ -362,6 +364,10 @@ export default {
 
     const fileInput = ref(null)
 
+    const viewAnimalDetails = (animalId) => {
+      router.push(`/my-animals/${animalId}`)
+    }
+
     onMounted(() => {
       fetchAnimals()
       // Добавляем обработчик Esc при монтировании
@@ -403,6 +409,7 @@ export default {
       closeDeleteModal,
       confirmDelete,
       animalToDelete,
+      viewAnimalDetails
     }
   }
 }
@@ -430,6 +437,26 @@ export default {
   height: 55px;
 }
 
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+
+  .header h1 {
+    margin: 0;
+    font-size: 24px;
+  }
+
+  .header .btn-primary {
+    padding: 12px 20px;
+    font-size: 16px;
+    min-width: 200px;
+    height: 45px;
+  }
+}
+
 .animals-list {
   display: flex;
   flex-wrap: wrap;
@@ -451,6 +478,13 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.animal-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .animal-photo {

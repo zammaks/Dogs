@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, DogSitter, Booking, Animal
+from .models import User, DogSitter, Booking, Animal, Service
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -23,14 +23,20 @@ class DogSitterSerializer(serializers.ModelSerializer):
             'avatar'
         ]
 
+class ServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Service
+        fields = ['id', 'name', 'description', 'price']
+
 class BookingSerializer(serializers.ModelSerializer):
     animals = AnimalSerializer(many=True, read_only=True)
     dog_sitter = DogSitterSerializer(read_only=True)
+    services = ServiceSerializer(many=True, read_only=True)
     
     class Meta:
         model = Booking
         fields = [
             'id', 'start_date', 'end_date', 'status',
-            'total_price', 'animals', 'dog_sitter'
+            'total_price', 'animals', 'dog_sitter', 'services'
         ]
         read_only_fields = ['total_price', 'status'] 

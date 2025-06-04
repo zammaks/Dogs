@@ -11,7 +11,7 @@
       У вас пока нет бронирований
     </div>
     <div v-else class="bookings-grid">
-      <div v-for="booking in bookings" :key="booking.id" class="booking-card">
+      <div v-for="booking in bookings" :key="booking.id" class="booking-card" @click="openEditForm(booking)">
         <div class="booking-header">
           <h3>
             {{ getDogSitterName(booking) }}
@@ -24,15 +24,26 @@
           <p><strong>Стоимость:</strong> {{ booking.total_price || 0 }}₽</p>
         </div>
         <div class="booking-actions" v-if="booking.status === 'pending' || booking.status === 'confirmed'">
-          <button @click="showCancelModal(booking)" class="cancel-button" :disabled="loading">
+          <button @click.stop="openCancelModal(booking)" class="cancel-button" :disabled="loading">
             Отменить бронирование
           </button>
         </div>
       </div>
     </div>
 
+    <!-- Модальное окно редактирования бронирования -->
+    <div v-if="showEditModal" class="modal-overlay" @click="closeEditModal">
+      <div class="modal-content edit-modal" @click.stop>
+        <BookingEditForm
+          :booking-id="selectedBooking?.id"
+          @close="closeEditModal"
+          @update="handleBookingUpdate"
+        />
+      </div>
+    </div>
+
     <!-- Модальное окно подтверждения отмены -->
-    <div v-if="showModal" class="modal-overlay" @click="closeModal">
+    <div v-if="showCancelModal" class="modal-overlay" @click="closeCancelModal">
       <div class="modal-content" @click.stop>
         <h3>Подтверждение отмены</h3>
         <p>Вы действительно хотите отменить бронирование?</p>
@@ -46,7 +57,7 @@
           <button @click="confirmCancel" class="confirm-button" :disabled="loading">
             {{ loading ? 'Отмена...' : 'Подтвердить' }}
           </button>
-          <button @click="closeModal" class="cancel-modal-button" :disabled="loading">
+          <button @click="closeCancelModal" class="cancel-modal-button" :disabled="loading">
             Отмена
           </button>
         </div>
@@ -60,16 +71,21 @@ import { ref, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import { api } from '../api/config'
 import { useRouter } from 'vue-router'
+import BookingEditForm from './BookingEditForm.vue'
 
 export default {
   name: 'BookingList',
+  components: {
+    BookingEditForm
+  },
   setup() {
     const store = useStore()
     const router = useRouter()
     const bookings = ref([])
     const loading = ref(true)
     const error = ref(null)
-    const showModal = ref(false)
+    const showCancelModal = ref(false)
+    const showEditModal = ref(false)
     const selectedBooking = ref(null)
 
     const getDogSitterName = (booking) => {
@@ -129,13 +145,30 @@ export default {
       }
     }
 
-    const showCancelModal = (booking) => {
+    const openEditForm = (booking) => {
       selectedBooking.value = booking
-      showModal.value = true
+      showEditModal.value = true
     }
 
-    const closeModal = () => {
-      showModal.value = false
+    const closeEditModal = () => {
+      showEditModal.value = false
+      selectedBooking.value = null
+    }
+
+    const handleBookingUpdate = (updatedBooking) => {
+      const index = bookings.value.findIndex(b => b.id === updatedBooking.id)
+      if (index !== -1) {
+        bookings.value[index] = updatedBooking
+      }
+    }
+
+    const openCancelModal = (booking) => {
+      selectedBooking.value = booking
+      showCancelModal.value = true
+    }
+
+    const closeCancelModal = () => {
+      showCancelModal.value = false
       selectedBooking.value = null
     }
 
@@ -152,7 +185,7 @@ export default {
           booking.status = 'cancelled'
         }
         
-        closeModal()
+        closeCancelModal()
       } catch (err) {
         console.error('Error cancelling booking:', err)
         error.value = 'Ошибка при отмене бронирования'
@@ -220,14 +253,18 @@ export default {
       bookings,
       loading,
       error,
-      showModal,
+      showCancelModal,
+      showEditModal,
       selectedBooking,
       getStatusText,
       formatDate,
       getDogSitterName,
-      showCancelModal,
-      closeModal,
-      confirmCancel
+      openCancelModal,
+      closeCancelModal,
+      confirmCancel,
+      openEditForm,
+      closeEditModal,
+      handleBookingUpdate
     }
   }
 }
@@ -268,6 +305,13 @@ export default {
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border: 1px solid #eee;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.booking-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .booking-header {
