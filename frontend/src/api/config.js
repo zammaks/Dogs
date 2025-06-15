@@ -29,34 +29,27 @@ import axios from 'axios'
 import store from '../store'
 
 // Создаем экземпляр axios с общими настройками
-export const api = axios.create({
-  baseURL: API_URL,
+const api = axios.create({
+  baseURL: 'http://localhost:8000/api/',
   headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
+    'Content-Type': 'application/json'
   }
 })
 
 // Добавляем перехватчик для установки токена
-api.interceptors.request.use(
-  config => {
-    const token = store.state.auth.token || localStorage.getItem('token')
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`
-    }
-    return config
-  },
-  error => {
-    console.error('Ошибка при подготовке запроса:', error)
-    return Promise.reject(error)
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
   }
-)
+  return config
+})
 
 // Добавляем перехватчик ответов
 api.interceptors.response.use(
   response => response,
   error => {
-    if (error.response && error.response.status === 401) {
+    if (error.response?.status === 401) {
       console.log('Ошибка авторизации, перенаправление на страницу входа')
       // Очищаем токен
       localStorage.removeItem('token')
@@ -66,4 +59,6 @@ api.interceptors.response.use(
     }
     return Promise.reject(error)
   }
-) 
+)
+
+export { api } 

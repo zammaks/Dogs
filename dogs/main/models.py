@@ -1,5 +1,5 @@
 from django.db import models
-from django.core.validators import RegexValidator, EmailValidator
+from django.core.validators import RegexValidator, EmailValidator, MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models import F, ExpressionWrapper, fields, Avg, Count, Sum, Min, Max, Case, When, IntegerField, Q, Value, CharField
@@ -220,10 +220,11 @@ class Service(models.Model):
 
 
 class DogSitter(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    rating = models.FloatField(default=0.0)
-    description = models.TextField(blank=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='dogsitter')
     experience_years = models.IntegerField(default=0)
+    rating = models.FloatField(default=0)
+    description = models.TextField(blank=True)
+    is_blocked = models.BooleanField(default=False)
     last_login = models.DateTimeField(default=timezone.now)
     avatar = models.FileField(
         upload_to=dogsitter_document_path,
@@ -760,6 +761,7 @@ class Review(models.Model):
     comment = models.TextField(blank=True, null=True, verbose_name="Комментарий")
     date = models.DateTimeField(default=timezone.now, verbose_name="Дата отзыва")
     is_verified = models.BooleanField(default=False, verbose_name="Проверен")
+    created_at = models.DateTimeField(default=timezone.now)
 
     def save(self, *args, **kwargs):
         """Обновление рейтинга догситтера после отзыва"""

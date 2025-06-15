@@ -12,6 +12,7 @@ from django.db.models.functions import TruncMonth, Concat
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework import status
 
 from .models import User, Animal, Booking, DogSitter, Service, Review
 
@@ -882,3 +883,213 @@ def booking_detail_api(request, pk):
             })
         except ValueError as e:
             return Response({"error": str(e)}, status=400)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_bookings_by_user(request):
+    """
+    API endpoint для получения бронирований, сгруппированных по пользователям (только для администраторов)
+    """
+    if not request.user.is_superuser:
+        return Response({"error": "Доступ запрещен"}, status=403)
+    
+    # Получаем всех пользователей с бронированиями
+    users_with_bookings = User.objects.filter(bookings__isnull=False).distinct()
+    
+    # Формируем данные по каждому пользователю
+    result = []
+    for user in users_with_bookings:
+        user_bookings = Booking.objects.filter(user=user).order_by('-start_date')
+        bookings_data = []
+        
+        for booking in user_bookings:
+            booking_data = {
+                'id': booking.id,
+                'start_date': booking.start_date,
+                'end_date': booking.end_date,
+                'status': booking.status,
+                'total_price': str(booking.total_price),
+                'dog_sitter': {
+                    'id': booking.dog_sitter.id,
+                    'user': {
+                        'first_name': booking.dog_sitter.user.first_name,
+                        'last_name': booking.dog_sitter.user.last_name
+                    }
+                } if booking.dog_sitter else None,
+                'animals': [{
+                    'id': animal.id,
+                    'name': animal.name,
+                    'type': animal.type,
+                    'size': animal.size
+                } for animal in booking.animals.all()],
+                'services': [{
+                    'id': service.id,
+                    'name': service.name,
+                    'price': str(service.price)
+                } for service in booking.services.all()]
+            }
+            bookings_data.append(booking_data)
+        
+        user_data = {
+            'id': user.id,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'bookings': bookings_data
+        }
+        result.append(user_data)
+    
+    return Response(result)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_animals_by_user(request):
+    """
+    API endpoint для получения животных, сгруппированных по пользователям (только для администраторов)
+    """
+    if not request.user.is_superuser:
+        return Response({"error": "Доступ запрещен"}, status=403)
+    
+    # Получаем всех пользователей с животными
+    users_with_animals = User.objects.filter(animals__isnull=False).distinct()
+    
+    # Формируем данные по каждому пользователю
+    result = []
+    for user in users_with_animals:
+        user_animals = Animal.objects.filter(user=user).order_by('name')
+        animals_data = []
+        
+        for animal in user_animals:
+            animal_data = {
+                'id': animal.id,
+                'name': animal.name,
+                'type': animal.type,
+                'breed': animal.breed,
+                'age': animal.age,
+                'size': animal.size,
+                'special_needs': animal.special_needs,
+                'photo': animal.photo.url if animal.photo else None,
+                'bookings_count': animal.bookings.count()
+            }
+            animals_data.append(animal_data)
+        
+        user_data = {
+            'id': user.id,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'animals': animals_data
+        }
+        result.append(user_data)
+    
+    return Response(result)
+
+@api_view(['GET'])
+def animal_list_api(request):
+    """API endpoint для получения списка животных пользователя"""
+    if not request.user.is_authenticated:
+        return Response({"error": "Требуется авторизация"}, status=401)
+    
+    animals = Animal.objects.filter(user=request.user)
+    data = []
+    for animal in animals:
+        animal_data = {
+            'id': animal.id,
+            'name': animal.name,
+            'type': animal.type,
+            'breed': animal.breed,
+            'age': animal.age,
+            'size': animal.size,
+            'special_needs': animal.special_needs,
+            'photo': animal.photo.url if animal.photo else None,
+            'bookings_count': animal.bookings.count()
+        }
+        data.append(animal_data)
+    return Response(data)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def animal_detail_api(request, pk):
+    """API endpoint для работы с конкретным животным"""
+    try:
+        animal = Animal.objects.get(pk=pk)
+    except Animal.DoesNotExist:
+        return Response({"error": "Животное не найдено"}, status=404)
+    
+    if animal.user != request.user and not request.user.is_superuser:
+        return Response({"error": "У вас нет прав для этого действия"}, status=403)
+    
+    if request.method == 'GET':
+        data = {
+            'id': animal.id,
+            'name': animal.name,
+            'type': animal.type,
+            'breed': animal.breed,
+            'age': animal.age,
+            'size': animal.size,
+            'special_needs': animal.special_needs,
+            'photo': animal.photo.url if animal.photo else None,
+            'bookings_count': animal.bookings.count()
+        }
+        return Response(data)
+    
+    elif request.method == 'PUT':
+        if 'name' in request.data:
+            animal.name = request.data['name']
+        if 'type' in request.data:
+            animal.type = request.data['type']
+        if 'breed' in request.data:
+            animal.breed = request.data['breed']
+        if 'age' in request.data:
+            animal.age = request.data['age']
+        if 'size' in request.data:
+            animal.size = request.data['size']
+        if 'special_needs' in request.data:
+            animal.special_needs = request.data['special_needs']
+        if 'photo' in request.FILES:
+            animal.photo = request.FILES['photo']
+        
+        animal.save()
+        return Response({"message": "Животное успешно обновлено"})
+    
+    elif request.method == 'DELETE':
+        animal.delete()
+        return Response({"message": "Животное успешно удалено"})
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_animals_by_user(request):
+    """API endpoint для получения животных, сгруппированных по пользователям (только для администраторов)"""
+    if not request.user.is_superuser:
+        return Response({"error": "Доступ запрещен"}, status=403)
+    
+    users_with_animals = User.objects.filter(animals__isnull=False).distinct()
+    result = []
+    
+    for user in users_with_animals:
+        user_animals = Animal.objects.filter(user=user).order_by('name')
+        animals_data = []
+        
+        for animal in user_animals:
+            animal_data = {
+                'id': animal.id,
+                'name': animal.name,
+                'type': animal.type,
+                'breed': animal.breed,
+                'age': animal.age,
+                'size': animal.size,
+                'special_needs': animal.special_needs,
+                'photo': animal.photo.url if animal.photo else None,
+                'bookings_count': animal.bookings.count()
+            }
+            animals_data.append(animal_data)
+        
+        user_data = {
+            'id': user.id,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'animals': animals_data
+        }
+        result.append(user_data)
+    
+    return Response(result)

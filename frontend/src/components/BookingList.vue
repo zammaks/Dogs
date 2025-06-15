@@ -7,26 +7,56 @@
     <div v-else-if="error" class="error">
       {{ error }}
     </div>
-    <div v-else-if="bookings.length === 0" class="no-bookings">
-      У вас пока нет бронирований
-    </div>
-    <div v-else class="bookings-grid">
-      <div v-for="booking in bookings" :key="booking.id" class="booking-card" @click="openEditForm(booking)">
-        <div class="booking-header">
-          <h3>
-            {{ getDogSitterName(booking) }}
-          </h3>
-          <span :class="['status', booking.status]">{{ getStatusText(booking.status) }}</span>
+    <div v-else>
+      <!-- Для администратора -->
+      <div v-if="isAdmin" class="admin-bookings">
+        <div v-for="user in userBookings" :key="user.id" class="user-bookings-section">
+          <h3 class="user-header">{{ user.first_name }} {{ user.last_name }} ({{ user.email }})</h3>
+          <div v-if="user.bookings.length === 0" class="no-bookings">
+            У пользователя нет бронирований
+          </div>
+          <div v-else class="bookings-grid">
+            <div v-for="booking in user.bookings" :key="booking.id" class="booking-card" @click="openEditForm(booking)">
+              <div class="booking-header">
+                <h3>{{ getDogSitterName(booking) }}</h3>
+                <span :class="['status', booking.status]">{{ getStatusText(booking.status) }}</span>
+              </div>
+              <div class="booking-details">
+                <p><strong>Дата начала:</strong> {{ formatDate(booking.start_date) }}</p>
+                <p><strong>Дата окончания:</strong> {{ formatDate(booking.end_date) }}</p>
+                <p><strong>Стоимость:</strong> {{ booking.total_price || 0 }}₽</p>
+              </div>
+              <div class="booking-actions" v-if="booking.status === 'pending' || booking.status === 'confirmed'">
+                <button @click.stop="openCancelModal(booking)" class="cancel-button" :disabled="loading">
+                  Отменить бронирование
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="booking-details">
-          <p><strong>Дата начала:</strong> {{ formatDate(booking.start_date) }}</p>
-          <p><strong>Дата окончания:</strong> {{ formatDate(booking.end_date) }}</p>
-          <p><strong>Стоимость:</strong> {{ booking.total_price || 0 }}₽</p>
+      </div>
+      <!-- Для обычного пользователя -->
+      <div v-else>
+        <div v-if="bookings.length === 0" class="no-bookings">
+          У вас пока нет бронирований
         </div>
-        <div class="booking-actions" v-if="booking.status === 'pending' || booking.status === 'confirmed'">
-          <button @click.stop="openCancelModal(booking)" class="cancel-button" :disabled="loading">
-            Отменить бронирование
-          </button>
+        <div v-else class="bookings-grid">
+          <div v-for="booking in bookings" :key="booking.id" class="booking-card" @click="openEditForm(booking)">
+            <div class="booking-header">
+              <h3>{{ getDogSitterName(booking) }}</h3>
+              <span :class="['status', booking.status]">{{ getStatusText(booking.status) }}</span>
+            </div>
+            <div class="booking-details">
+              <p><strong>Дата начала:</strong> {{ formatDate(booking.start_date) }}</p>
+              <p><strong>Дата окончания:</strong> {{ formatDate(booking.end_date) }}</p>
+              <p><strong>Стоимость:</strong> {{ booking.total_price || 0 }}₽</p>
+            </div>
+            <div class="booking-actions" v-if="booking.status === 'pending' || booking.status === 'confirmed'">
+              <button @click.stop="openCancelModal(booking)" class="cancel-button" :disabled="loading">
+                Отменить бронирование
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -67,7 +97,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useStore } from 'vuex'
 import { api } from '../api/config'
 import { useRouter } from 'vue-router'
@@ -82,11 +112,14 @@ export default {
     const store = useStore()
     const router = useRouter()
     const bookings = ref([])
+    const userBookings = ref([]) // Для администратора
     const loading = ref(true)
     const error = ref(null)
     const showCancelModal = ref(false)
     const showEditModal = ref(false)
     const selectedBooking = ref(null)
+
+    const isAdmin = computed(() => store.state.auth.user?.is_superuser)
 
     const getDogSitterName = (booking) => {
       console.log('Обработка данных догситтера:', booking)
@@ -198,48 +231,23 @@ export default {
       try {
         loading.value = true
         error.value = null
-        
-        // Проверяем наличие токена
-        const token = store.state.auth.token
-        if (!token) {
-          console.log('Токен отсутствует, перенаправление на страницу входа')
-          error.value = 'Необходима авторизация'
-          router.push('/login')
-          return
-        }
 
-        const response = await api.get('/bookings/')
-        console.log('Полный ответ от сервера:', response)
-        console.log('Данные бронирований:', response.data)
-        
-        if (response.data && Array.isArray(response.data)) {
-          response.data.forEach((booking, index) => {
-            console.log(`Бронирование ${index + 1}:`, booking)
-            if (booking.dog_sitter) {
-              console.log(`Догситтер для бронирования ${index + 1}:`, booking.dog_sitter)
-            }
-          })
-          bookings.value = response.data
+        if (isAdmin.value) {
+          // Для администратора получаем бронирования по пользователям
+          const response = await api.get('bookings-by-user/')
+          userBookings.value = response.data
         } else {
-          console.error('Неверный формат данных:', response.data)
-          error.value = 'Ошибка формата данных'
-          bookings.value = []
+          // Для обычного пользователя получаем только его бронирования
+          const response = await api.get('bookings/')
+          bookings.value = response.data
         }
       } catch (err) {
-        console.error('Ошибка при загрузке бронирований:', err)
-        if (err.response) {
-          if (err.response.status === 401) {
-            error.value = 'Необходима авторизация'
-            router.push('/login')
-          } else {
-            error.value = `Ошибка сервера: ${err.response.status}`
-          }
-        } else if (err.request) {
-          error.value = 'Сервер недоступен'
+        console.error('Error fetching bookings:', err)
+        if (err.response?.status === 403) {
+          error.value = 'У вас нет прав для просмотра этой информации'
         } else {
           error.value = 'Ошибка при загрузке бронирований'
         }
-        bookings.value = []
       } finally {
         loading.value = false
       }
@@ -251,20 +259,22 @@ export default {
 
     return {
       bookings,
+      userBookings,
       loading,
       error,
       showCancelModal,
       showEditModal,
       selectedBooking,
+      isAdmin,
+      getDogSitterName,
       getStatusText,
       formatDate,
-      getDogSitterName,
-      openCancelModal,
-      closeCancelModal,
-      confirmCancel,
       openEditForm,
       closeEditModal,
-      handleBookingUpdate
+      handleBookingUpdate,
+      openCancelModal,
+      closeCancelModal,
+      confirmCancel
     }
   }
 }
@@ -489,5 +499,26 @@ export default {
     width: 95%;
     padding: 1.5rem;
   }
+}
+
+.user-bookings-section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.user-header {
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e9ecef;
+  color: #343a40;
+  font-size: 1.25rem;
+}
+
+.admin-bookings {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 </style> 

@@ -14,6 +14,7 @@
           <router-link to="/dogsitters" @click="closeMenu">Догситтеры</router-link>
           <router-link to="/my-animals" @click="closeMenu">Мои животные</router-link>
           <router-link to="/bookings" @click="closeMenu">Мои бронирования</router-link>
+          <span v-if="currentUser?.is_superuser" class="admin-badge" style="color: white; margin-left: 8px;">АДМИНИСТРАТОР</span>
           <router-link to="/profile" class="user-info" @click="closeMenu">
             {{ currentUser?.first_name }} {{ currentUser?.last_name }}
           </router-link>
@@ -30,7 +31,7 @@
 </template>
 
 <script>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import LogoutButton from './components/LogoutButton.vue'
 import Accessibility from './components/Accessibility.vue'
@@ -50,6 +51,10 @@ export default {
     const closeMenu = () => {
       isMenuOpen.value = false
     }
+
+    onMounted(() => {
+      console.log('Current user:', store.state.auth.user)
+    })
 
     return {
       isAuthenticated,
@@ -152,6 +157,15 @@ body {
 
 .nav-links a:hover {
   background-color: rgba(255, 255, 255, 0.2);
+}
+
+.admin-badge {
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.9em;
+  display: inline-block;
 }
 
 .user-info {

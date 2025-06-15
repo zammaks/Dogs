@@ -38,7 +38,7 @@
               {{ suggestion.first_name }} {{ suggestion.last_name }}
             </div>
             <div class="suggestion-details">
-              <span class="suggestion-rating">★ {{ suggestion.rating.toFixed(1) }}</span>
+              <span class="suggestion-rating">★ {{ suggestion.average_rating ? suggestion.average_rating.toFixed(1) : '0.0' }}</span>
               <span class="suggestion-experience">
                 Опыт: {{ getExperienceString(suggestion.experience_years) }}
               </span>
@@ -88,11 +88,49 @@
             <div class="rating">
               <span class="stars">
                 <i v-for="n in 5" :key="n" class="star" 
-                   :class="{ 'filled': n <= Math.round(sitter.rating) }">★</i>
+                   :class="{ 'filled': n <= Math.round(sitter.average_rating || 0) }">★</i>
               </span>
-              <span class="rating-value">{{ sitter.rating.toFixed(1) }}</span>
+              <span class="rating-value">{{ sitter.average_rating ? sitter.average_rating.toFixed(1) : '0.0' }}</span>
+            </div>
+            <div v-if="isAdmin" class="admin-actions">
+              <button 
+                @click.stop="showDeleteModal(sitter)"
+                class="delete-button"
+              >
+                Удалить
+              </button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модальное окно подтверждения удаления -->
+    <div v-if="showDeleteConfirmation" class="modal-overlay" @click="closeDeleteModal">
+      <div class="modal-content" @click.stop>
+        <h3>Удалить догситтера?</h3>
+        <div class="dogsitter-info" v-if="selectedDogsitter">
+          <img 
+            :src="getPhotoUrl(selectedDogsitter.avatar)" 
+            :alt="selectedDogsitter.first_name + ' ' + selectedDogsitter.last_name"
+            class="modal-avatar"
+          >
+          <div class="modal-dogsitter-details">
+            <p><strong>Имя:</strong> {{ selectedDogsitter.first_name }} {{ selectedDogsitter.last_name }}</p>
+            <p><strong>Рейтинг:</strong> {{ selectedDogsitter.average_rating ? selectedDogsitter.average_rating.toFixed(1) : '0.0' }}</p>
+            <p><strong>Опыт:</strong> {{ getExperienceString(selectedDogsitter.experience_years) }}</p>
+          </div>
+        </div>
+        <div class="warning-message">
+          Это действие нельзя отменить. Все данные догситтера будут удалены.
+        </div>
+        <div class="modal-actions">
+          <button @click="confirmDelete" class="delete-button" :disabled="deleteLoading">
+            {{ deleteLoading ? 'Удаление...' : 'Удалить' }}
+          </button>
+          <button @click="closeDeleteModal" class="cancel-button" :disabled="deleteLoading">
+            Отмена
+          </button>
         </div>
       </div>
     </div>
@@ -103,7 +141,7 @@
 import axios from 'axios'
 import { ref, onMounted, computed } from 'vue'
 import { useStore } from 'vuex'
-import { endpoints } from '../api/config'
+import { api, endpoints } from '../api/config'
 import { useRouter } from 'vue-router'
 
 export default {
@@ -119,11 +157,23 @@ export default {
     const searchQuery = ref('')
     const showSuggestions = ref(false)
     let hideTimeout = null
+    const showDeleteConfirmation = ref(false)
+    const deleteLoading = ref(false)
+    const selectedDogsitter = ref(null)
+
+    const isAdmin = computed(() => {
+      const user = store.state.auth.user
+      const token = store.state.auth.token
+      console.log('Auth state:', { user, token })
+      console.log('Current user in DogSitterList:', user)
+      console.log('Is superuser:', user?.is_superuser)
+      return user?.is_superuser === true
+    })
 
     const getPhotoUrl = (photoPath) => {
       if (!photoPath) return '/images/default_avatar.jpg'
       if (photoPath.startsWith('http')) return photoPath
-      return `http://localhost:8000/media/${photoPath}`
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/media/${photoPath}`
     }
 
     const getAgeString = (age) => {
@@ -170,12 +220,12 @@ export default {
 
     const fetchDogSitters = async () => {
       try {
-        const token = store.state.auth.token
-        const response = await axios.get(endpoints.dogsitters, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
+        loading.value = true
+        error.value = null
+        const response = await api.get('/dogsitters/')
+        console.log('API Response:', response)
+        console.log('Loaded dogsitters:', response.data)
+        console.log('First dogsitter data:', response.data[0])
         dogsitters.value = response.data
         loading.value = false
       } catch (err) {
@@ -250,7 +300,41 @@ export default {
       })
     })
 
+    const showDeleteModal = (sitter) => {
+      console.log('Opening delete modal for dogsitter:', sitter)
+      selectedDogsitter.value = sitter
+      showDeleteConfirmation.value = true
+    }
+
+    const closeDeleteModal = () => {
+      showDeleteConfirmation.value = false
+      selectedDogsitter.value = null
+    }
+
+    const confirmDelete = async () => {
+      if (!selectedDogsitter.value) return
+
+      try {
+        deleteLoading.value = true
+        console.log(`Attempting to delete dogsitter:`, selectedDogsitter.value)
+        
+        await api.delete(`/dogsitters/${selectedDogsitter.value.id}/`)
+        
+        // Удаляем догситтера из списка
+        dogsitters.value = dogsitters.value.filter(d => d.id !== selectedDogsitter.value.id)
+        
+        closeDeleteModal()
+      } catch (err) {
+        console.error('Ошибка при удалении догситтера:', err)
+        error.value = 'Не удалось удалить догситтера'
+      } finally {
+        deleteLoading.value = false
+      }
+    }
+
     onMounted(() => {
+      console.log('DogSitterList mounted')
+      console.log('Initial auth state:', store.state.auth)
       fetchDogSitters()
     })
 
@@ -271,7 +355,14 @@ export default {
       clearSearch,
       selectSuggestion,
       filteredSuggestions,
-      filteredAndSortedDogsitters
+      filteredAndSortedDogsitters,
+      showDeleteConfirmation,
+      selectedDogsitter,
+      deleteLoading,
+      showDeleteModal,
+      closeDeleteModal,
+      confirmDelete,
+      isAdmin
     }
   }
 }
@@ -622,5 +713,86 @@ export default {
   .search-suggestions {
     margin-top: 10px;
   }
+}
+
+.delete-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 8px;
+  transition: background-color 0.2s;
+}
+
+.delete-button:hover {
+  background-color: #c82333;
+}
+
+.delete-button:disabled {
+  background-color: #e9a5ac;
+  cursor: not-allowed;
+}
+
+.warning-message {
+  color: #dc3545;
+  margin: 16px 0;
+  text-align: center;
+  font-weight: bold;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.modal-content {
+  background: white;
+  padding: 24px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 90%;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.modal-dogsitter-details {
+  margin-left: 16px;
+}
+
+.dogsitter-info {
+  display: flex;
+  align-items: center;
+  margin: 24px 0;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.admin-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 </style> 

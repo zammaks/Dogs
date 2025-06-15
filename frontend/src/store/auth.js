@@ -39,6 +39,7 @@ export default {
         })
         
         const data = await response.json()
+        console.log('Login response:', data)
         
         if (!response.ok) {
           commit('setError', data.message || 'Неверный email или пароль')
@@ -47,6 +48,7 @@ export default {
 
         commit('setToken', data.token)
         commit('setUser', data.user)
+        console.log('User data after login:', data.user)
         return true
       } catch (error) {
         console.error('Login error:', error)

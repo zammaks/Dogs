@@ -17,33 +17,66 @@
       {{ error }}
     </div>
 
-    <!-- Список животных -->
-    <div v-else-if="animals && animals.length > 0" class="animals-list">
-      <div v-for="animal in animals" :key="animal.id" class="animal-card" @click="viewAnimalDetails(animal.id)">
-        <div class="animal-photo">
-          <img v-if="animal.photo" :src="getPhotoUrl(animal.photo)" :alt="animal.name">
-          <img v-else :src="getDefaultAnimalPhoto(animal.type)" :alt="animal.name">
+    <!-- Для администратора -->
+    <div v-else-if="isAdmin" class="admin-animals">
+      <div v-for="user in userAnimals" :key="user.id" class="user-animals-section">
+        <h3 class="user-header">{{ user.first_name }} {{ user.last_name }} ({{ user.email }})</h3>
+        <div v-if="user.animals.length === 0" class="no-animals">
+          У пользователя нет животных
         </div>
-        <h3>{{ animal.name }}</h3>
-        <div class="animal-info">
-          <p><strong>Тип:</strong> {{ getAnimalType(animal.type) }}</p>
-          <p><strong>Порода:</strong> {{ animal.breed }}</p>
-          <p><strong>Возраст:</strong> {{ getAgeString(animal.age) }}</p>
-        </div>
-        <div class="button-group">
-          <button class="btn btn-primary" @click.stop="editAnimal(animal)">
-            Редактировать
-          </button>
-          <button class="btn btn-danger" @click.stop="openDeleteModal(animal)">
-            Удалить
-          </button>
+        <div v-else class="animals-list">
+          <div v-for="animal in user.animals" :key="animal.id" class="animal-card" @click="viewAnimalDetails(animal.id)">
+            <div class="animal-photo">
+              <img v-if="animal.photo" :src="getPhotoUrl(animal.photo)" :alt="animal.name">
+              <img v-else :src="getDefaultAnimalPhoto(animal.type)" :alt="animal.name">
+            </div>
+            <h3>{{ animal.name }}</h3>
+            <div class="animal-info">
+              <p><strong>Тип:</strong> {{ getAnimalType(animal.type) }}</p>
+              <p><strong>Порода:</strong> {{ animal.breed }}</p>
+              <p><strong>Возраст:</strong> {{ getAgeString(animal.age) }}</p>
+              <p><strong>Бронирований:</strong> {{ animal.bookings_count }}</p>
+            </div>
+            <div class="button-group">
+              <button class="btn btn-primary" @click.stop="editAnimal(animal)">
+                Редактировать
+              </button>
+              <button class="btn btn-danger" @click.stop="openDeleteModal(animal)">
+                Удалить
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Сообщение об отсутствии животных -->
-    <div v-else class="no-animals">
-      <p>У вас пока нет добавленных животных</p>
+    <!-- Для обычного пользователя -->
+    <div v-else>
+      <div v-if="animals.length === 0" class="no-animals">
+        <p>У вас пока нет добавленных животных</p>
+      </div>
+      <div v-else class="animals-list">
+        <div v-for="animal in animals" :key="animal.id" class="animal-card" @click="viewAnimalDetails(animal.id)">
+          <div class="animal-photo">
+            <img v-if="animal.photo" :src="getPhotoUrl(animal.photo)" :alt="animal.name">
+            <img v-else :src="getDefaultAnimalPhoto(animal.type)" :alt="animal.name">
+          </div>
+          <h3>{{ animal.name }}</h3>
+          <div class="animal-info">
+            <p><strong>Тип:</strong> {{ getAnimalType(animal.type) }}</p>
+            <p><strong>Порода:</strong> {{ animal.breed }}</p>
+            <p><strong>Возраст:</strong> {{ getAgeString(animal.age) }}</p>
+          </div>
+          <div class="button-group">
+            <button class="btn btn-primary" @click.stop="editAnimal(animal)">
+              Редактировать
+            </button>
+            <button class="btn btn-danger" @click.stop="openDeleteModal(animal)">
+              Удалить
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Модальное окно добавления/редактирования животного -->
@@ -148,14 +181,17 @@
 
 <script>
 import axios from 'axios'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useStore } from 'vuex'
 
 export default {
   name: 'MyAnimals',
   setup() {
+    const store = useStore()
     const router = useRouter()
     const animals = ref([])
+    const userAnimals = ref([]) // Для администратора
     const showModal = ref(false)
     const loading = ref(false)
     const error = ref(null)
@@ -175,6 +211,8 @@ export default {
       photo: null
     })
 
+    const isAdmin = computed(() => store.state.auth.user?.is_superuser)
+
     // Настройка axios
     const token = localStorage.getItem('token')
     const api = axios.create({
@@ -191,8 +229,8 @@ export default {
       if (photoPath.startsWith('http')) {
         return photoPath
       }
-      // Если путь начинается с /, убираем первый слеш чтобы избежать двойного слеша
-      const path = photoPath.startsWith('/') ? photoPath.substring(1) : photoPath
+      // Если путь начинается с /media/, убираем /media/
+      const path = photoPath.startsWith('/media/') ? photoPath.substring(7) : photoPath
       return `http://localhost:8000/media/${path}`
     }
 
@@ -220,13 +258,22 @@ export default {
       loading.value = true
       error.value = null
       try {
-        const response = await api.get('/api/animals/')
-        console.log('Ответ от сервера:', response)
-        console.log('Данные:', response.data)
-        animals.value = response.data
+        if (isAdmin.value) {
+          // Для администратора получаем животных по пользователям
+          const response = await api.get('/api/animals-by-user/')
+          userAnimals.value = response.data
+        } else {
+          // Для обычного пользователя получаем только его животных
+          const response = await api.get('/api/animals/')
+          animals.value = response.data
+        }
       } catch (err) {
         console.error('Ошибка при получении списка животных:', err)
-        error.value = 'Не удалось загрузить список животных. Пожалуйста, попробуйте позже.'
+        if (err.response?.status === 403) {
+          error.value = 'У вас нет прав для просмотра этой информации'
+        } else {
+          error.value = 'Не удалось загрузить список животных. Пожалуйста, попробуйте позже.'
+        }
       } finally {
         loading.value = false
       }
@@ -354,11 +401,11 @@ export default {
     const getDefaultAnimalPhoto = (type) => {
       switch (type) {
         case 'dog':
-          return '/images/собака.jpg'
+          return '/images/default-dog.jpg'
         case 'cat':
-          return '/images/кот.png'
+          return '/images/default-cat.jpg'
         default:
-          return '/images/собака.jpg'
+          return '/images/default-pet.jpg'
       }
     }
 
@@ -387,6 +434,7 @@ export default {
 
     return {
       animals,
+      userAnimals,
       showModal,
       loading,
       error,
@@ -409,7 +457,8 @@ export default {
       closeDeleteModal,
       confirmDelete,
       animalToDelete,
-      viewAnimalDetails
+      viewAnimalDetails,
+      isAdmin
     }
   }
 }
@@ -827,5 +876,33 @@ export default {
 
 .delete-modal {
   max-width: 400px;
+}
+
+.user-animals-section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.user-header {
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e9ecef;
+  color: #343a40;
+  font-size: 1.25rem;
+}
+
+.admin-animals {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.admin-animals .animals-list {
+  padding: 1rem;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 </style> 

@@ -3,6 +3,7 @@
     <div class="welcome-section">
       <h1 class="welcome-message" v-if="currentUser">
         Привет, {{ currentUser.first_name }}!
+        <span v-if="currentUser.is_superuser" class="admin-badge">АДМИНИСТРАТОР</span>
       </h1>
       <p class="welcome-subtitle">Добро пожаловать в систему поиска догситтеров</p>
     </div>
@@ -322,7 +323,7 @@ export default {
     }
 
     const viewSitterProfile = (sitterId) => {
-      router.push({ name: 'DogSitterProfile', params: { id: sitterId } })
+      router.push({ name: 'DogSitterProfile', params: { id: sitterId.toString() } })
     }
 
     const navigateTo = (routeName) => {
@@ -1031,5 +1032,17 @@ export default {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   padding: 0.5rem;
+}
+
+.admin-badge {
+  display: inline-block;
+  background-color: #ff4444;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  margin-left: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
 }
 </style> 
