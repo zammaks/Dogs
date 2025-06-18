@@ -21,6 +21,7 @@ urlpatterns = [
     path('bookings/<int:pk>/cancel/', views_api.cancel_booking, name='booking-cancel'),
     path('users/me/delete/', DeleteAccountView.as_view(), name='delete-account'),
     path('statistics/', views_api.get_statistics, name='api-statistics'),
+    path('sentry-debug/', views_api.sentry_debug, name='sentry-debug'),
     
     # Маршруты для животных
     path('animals/<int:pk>/delete/', views.animal_delete, name='animal_delete'),

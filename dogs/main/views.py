@@ -1,11 +1,11 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse, HttpResponseRedirect, Http404
+from django.http import JsonResponse, HttpResponseRedirect, Http404, HttpRequest, HttpResponse
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
-from django.db.models import Q, Count, Avg, Sum, F, ExpressionWrapper, fields
+from django.db.models import Q, Count, Avg, Sum, F, ExpressionWrapper, fields, QuerySet
 from django.utils import timezone
 from datetime import timedelta
 from django.db.models.functions import TruncMonth, Concat
@@ -13,18 +13,25 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from typing import Dict, List, Optional, Any
 
 from .models import User, Animal, Booking, DogSitter, Service, Review
 
 
-def index(request):
-    """Главная страница"""
-    # Получаем количество животных, бронирований и догситтеров для статистики
+def index(request: HttpRequest) -> HttpResponse:
+    """
+    Отображение главной страницы сайта.
+
+    Args:
+        request: Объект HTTP-запроса
+
+    Returns:
+        HttpResponse: Отрендеренная главная страница с контекстными данными
+    """
     animals_count = Animal.objects.count()
     bookings_count = Booking.objects.count()
     dogsitters_count = DogSitter.objects.count()
     
-    # Получаем 5 догситтеров с самым высоким рейтингом
     top_dogsitters = DogSitter.objects.order_by('-rating')[:5]
     
     context = {
@@ -36,10 +43,22 @@ def index(request):
     return render(request, 'main/index.html', context)
 
 
-def search_dogsitters(request):
+def search_dogsitters(request: HttpRequest) -> HttpResponse:
+    """
+    Поиск догситтеров с возможностью фильтрации по различным параметрам.
+
+    Args:
+        request: Объект HTTP-запроса с параметрами фильтрации
+            - min_rating: минимальный рейтинг догситтера
+            - has_reviews: наличие отзывов
+            - active_only: только активные догситтеры
+
+    Returns:
+        HttpResponse: Отрендеренная страница со списком отфильтрованных догситтеров
+    """
     min_rating = request.GET.get('min_rating', 0)
     
-    dogsitters = DogSitter.objects.all()
+    dogsitters: QuerySet[DogSitter] = DogSitter.objects.all()
     
     if min_rating:
         dogsitters = dogsitters.filter(rating__gte=float(min_rating))
@@ -47,12 +66,10 @@ def search_dogsitters(request):
     if 'has_reviews' in request.GET:
         dogsitters = dogsitters.annotate(review_count=Count('bookings__review')).filter(review_count__gt=0)
     
-    # Показываем только активных догситтеров (заходивших на сайт за последние 30 дней)
     if 'active_only' in request.GET:
         active_date = timezone.now() - timezone.timedelta(days=30)
         dogsitters = dogsitters.filter(last_login__gte=active_date)
     
-    # Сортировка результатов
     dogsitters = dogsitters.order_by('-rating')
     
     context = {
@@ -63,34 +80,42 @@ def search_dogsitters(request):
 
 
 class AnimalListView(ListView):
-    """Представление списка животных с использованием filter() в ListView"""
+    """
+    Представление для отображения списка животных с возможностью фильтрации.
+    
+    Attributes:
+        model: Модель Animal для работы со списком животных
+        template_name: Путь к шаблону для отображения списка
+        context_object_name: Имя переменной контекста для списка животных
+        paginate_by: Количество животных на одной странице
+    """
     model = Animal
     template_name = 'main/animal_list.html'
     context_object_name = 'animals'
     paginate_by = 10
     
-    def get_queryset(self):
-        """Переопределяем метод для фильтрации результатов"""
-        # Получаем базовый QuerySet
+    def get_queryset(self) -> QuerySet[Animal]:
+        """
+        Получение отфильтрованного списка животных.
+
+        Returns:
+            QuerySet[Animal]: Отфильтрованный список животных
+        """
         queryset = super().get_queryset()
         
-        # Получаем параметры фильтрации из GET-запроса
         animal_type = self.request.GET.get('type')
         animal_size = self.request.GET.get('size')
         
-        # Применяем фильтры, если они указаны
         if animal_type:
             queryset = queryset.filter(type=animal_type)
         
         if animal_size:
             queryset = queryset.filter(size=animal_size)
             
-        # Фильтрация по владельцу, если указан ID владельца
         user_id = self.request.GET.get('user_id')
         if user_id:
             queryset = queryset.filter(user_id=user_id)
             
-        # Сложная фильтрация с использованием Q-объектов (для поиска)
         search_query = self.request.GET.get('search')
         if search_query:
             queryset = queryset.filter(
@@ -100,14 +125,17 @@ class AnimalListView(ListView):
             
         return queryset
     
-    def get_context_data(self, **kwargs):
-        """Добавляем дополнительные данные в контекст"""
+    def get_context_data(self, **kwargs) -> Dict[str, Any]:
+        """
+        Добавление дополнительных данных в контекст шаблона.
+
+        Returns:
+            Dict[str, Any]: Расширенный контекст шаблона
+        """
         context = super().get_context_data(**kwargs)
-        # Добавляем списки возможных значений для фильтров
         context['animal_types'] = Animal.ANIMAL_TYPE_CHOICES
         context['animal_sizes'] = Animal.ANIMAL_SIZE_CHOICES
         
-        # Добавляем текущие значения фильтров
         context['current_type'] = self.request.GET.get('type', '')
         context['current_size'] = self.request.GET.get('size', '')
         context['search_query'] = self.request.GET.get('search', '')
@@ -115,7 +143,25 @@ class AnimalListView(ListView):
         return context
 
 
-def booking_list(request):
+def booking_list(request: HttpRequest) -> HttpResponse:
+    """
+    Отображение списка бронирований с возможностью фильтрации по различным параметрам.
+
+    Args:
+        request: Объект HTTP-запроса с параметрами фильтрации
+            - status: статус бронирования
+            - start_date: дата начала периода
+            - end_date: дата окончания периода
+            - user_id: ID пользователя
+            - dogsitter_id: ID догситтера
+            - service_id: ID услуги
+            - animal_type: тип животного
+            - has_review: наличие отзыва
+            - sort: поле для сортировки
+
+    Returns:
+        HttpResponse: Отрендеренная страница со списком отфильтрованных бронирований
+    """
     bookings = Booking.objects.all()
     
     status = request.GET.get('status')
@@ -173,16 +219,23 @@ def booking_list(request):
     return render(request, 'main/booking_list.html', context)
 
 
-def api_animal_search(request):
-    """API-представление для поиска животных с использованием filter()"""
-    # Получаем параметры поиска
+def api_animal_search(request: HttpRequest) -> JsonResponse:
+    """
+    API-представление для поиска животных с фильтрацией.
+
+    Args:
+        request: Объект HTTP-запроса с параметрами поиска
+            - query: строка поиска по имени или породе
+            - type: тип животного
+
+    Returns:
+        JsonResponse: JSON-ответ со списком найденных животных
+    """
     query = request.GET.get('query', '')
     animal_type = request.GET.get('type', '')
     
-    # Базовый QuerySet
-    animals = Animal.objects.all()
+    animals: QuerySet[Animal] = Animal.objects.all()
     
-    # Применяем фильтрацию
     if query:
         animals = animals.filter(
             Q(name__icontains=query) | 
@@ -192,7 +245,6 @@ def api_animal_search(request):
     if animal_type:
         animals = animals.filter(type=animal_type)
     
-    # Преобразуем результаты в список словарей для JSON-ответа
     animals_data = [
         {
             'id': animal.id,
@@ -207,86 +259,49 @@ def api_animal_search(request):
     return JsonResponse({'results': animals_data})
 
 
-def advanced_filter_examples(request):
+def advanced_filter_examples(request: HttpRequest) -> HttpResponse:
+    """
+    Примеры различных типов фильтрации в Django ORM.
 
-    expensive_bookings = Booking.objects.filter(total_price__gt=5000)
+    Args:
+        request: Объект HTTP-запроса
+
+    Returns:
+        HttpResponse: Отрендеренная страница с результатами фильтрации
+    """
+
+    expensive_bookings: QuerySet[Booking] = Booking.objects.filter(total_price__gt=5000)
     
 
-    terrier_dogs = Animal.objects.filter(breed__contains="терьер")
+    terrier_dogs: QuerySet[Animal] = Animal.objects.filter(breed__contains="терьер")
     
- 
-    i_users = User.objects.filter(last_name__startswith="И")
+    # Фильтрация по началу строки
+    i_users: QuerySet[User] = User.objects.filter(last_name__startswith="И")
     
- 
+    # Фильтрация по дате
     week_ago = timezone.now().date() - timedelta(days=7)
-    recent_bookings = Booking.objects.filter(start_date__gte=week_ago)
+    recent_bookings: QuerySet[Booking] = Booking.objects.filter(start_date__gte=week_ago)
     
-    # 1.5 - Поиск по диапазону значений
-    # Животные среднего возраста (от 3 до 8 лет)
-    middle_age_animals = Animal.objects.filter(age__range=(3, 8))
+    # Поиск по диапазону значений
+    middle_age_animals: QuerySet[Animal] = Animal.objects.filter(age__range=(3, 8))
     
-    # 1.6 - Поиск по списку значений
-    # Поиск животных определенных размеров
-    specific_sizes = Animal.objects.filter(
+    # Поиск по списку значений
+    specific_sizes: QuerySet[Animal] = Animal.objects.filter(
         size__in=[Animal.SIZE_SMALL, Animal.SIZE_LARGE]
     )
     
+    # Исключение значений
+    not_cats: QuerySet[Animal] = Animal.objects.exclude(type=Animal.CAT)
+    
+    # Проверка на NULL / NOT NULL
+    animals_with_breed: QuerySet[Animal] = Animal.objects.filter(breed__isnull=False)
+    
+    # Простая связь ForeignKey
+    user_animals: QuerySet[Animal] = Animal.objects.filter(user__id=1)
+    
+    # Фильтрация по полям связанной модели
+    ivanov_animals: QuerySet[Animal] = Animal.objects.filter(user__last_name="Иванов")
 
-    not_cats = Animal.objects.exclude(type=Animal.CAT)
-    
-    # 1.8 - Проверка на NULL / NOT NULL
-    # Животные с указанной породой
-    animals_with_breed = Animal.objects.filter(breed__isnull=False)
-    
-    # ПРИМЕР 2: Использование __ для доступа к связанным моделям
-    
-    # 2.1 - Простая связь ForeignKey
-    # Все животные пользователя с ID=1
-    user_animals = Animal.objects.filter(user__id=1)
-    
-    # 2.2 - Фильтрация по полям связанной модели
-    # Все животные, чьи владельцы имеют фамилию "Иванов"
-    ivanov_animals = Animal.objects.filter(user__last_name="Иванов")
-    
-    # 2.3 - Цепочка связей через несколько моделей
-    # Все отзывы для бронирований с крупными собаками
-    large_dog_reviews = Review.objects.filter(
-        booking__animals__size=Animal.SIZE_LARGE,
-        booking__animals__type=Animal.DOG
-    ).distinct()
-    
-    # 2.4 - Сложная фильтрация с использованием Q-объектов и связанных моделей
-    # Догситтеры, которые работали с крупными собаками или с кошками
-    sitters_with_experience = DogSitter.objects.filter(
-        Q(bookings__animals__type=Animal.DOG, bookings__animals__size=Animal.SIZE_LARGE) |
-        Q(bookings__animals__type=Animal.CAT)
-    ).distinct()
-    
-    # 2.5 - Работа с обратными связями
-    # Пользователи, у которых есть активные бронирования
-    active_users = User.objects.filter(
-        bookings__status__in=[Booking.STATUS_PENDING, Booking.STATUS_CONFIRMED]
-    ).distinct()
-    
-    # 2.6 - Аннотации со связанными моделями
-    # Подсчет количества животных у каждого пользователя
-    users_with_animal_count = User.objects.annotate(
-        animal_count=Count('animals')
-    )
-    
-    # 2.7 - Агрегация по связанным моделям
-    # Общая стоимость всех бронирований для каждого догситтера
-    sitters_earnings = DogSitter.objects.annotate(
-        total_earnings=Sum('bookings__total_price')
-    )
-    
-    # 2.8 - Сложная аннотация с условиями на связанных моделях
-    # Количество крупных собак у каждого пользователя
-    users_with_large_dogs = User.objects.annotate(
-        large_dog_count=Count('animals', filter=Q(animals__type=Animal.DOG, animals__size=Animal.SIZE_LARGE))
-    )
-    
-    # Формируем контекст с результатами
     context = {
         'expensive_bookings': expensive_bookings,
         'terrier_dogs': terrier_dogs,
@@ -298,15 +313,9 @@ def advanced_filter_examples(request):
         'animals_with_breed': animals_with_breed,
         'user_animals': user_animals,
         'ivanov_animals': ivanov_animals,
-        'large_dog_reviews': large_dog_reviews,
-        'sitters_with_experience': sitters_with_experience,
-        'active_users': active_users,
-        'users_with_animal_count': users_with_animal_count,
-        'sitters_earnings': sitters_earnings,
-        'users_with_large_dogs': users_with_large_dogs,
     }
     
-    return render(request, 'main/advanced_queries.html', context)
+    return render(request, 'main/advanced_filters.html', context)
 
 
 def time_based_filters(request):
@@ -380,39 +389,90 @@ def time_based_filters(request):
 # Представления для модели User
 
 class UserListView(LoginRequiredMixin, ListView):
+    """
+    Представление для отображения списка пользователей.
+    Требует аутентификации пользователя.
+
+    Attributes:
+        model: Модель User для работы со списком пользователей
+        template_name: Путь к шаблону для отображения списка
+        context_object_name: Имя переменной контекста для списка пользователей
+    """
     model = User
     template_name = 'main/user_list.html'
     context_object_name = 'users'
-    
+
 
 class UserDetailView(LoginRequiredMixin, DetailView):
+    """
+    Представление для отображения детальной информации о пользователе.
+    Требует аутентификации пользователя.
+
+    Attributes:
+        model: Модель User для работы с данными пользователя
+        template_name: Путь к шаблону для отображения информации
+        context_object_name: Имя переменной контекста для объекта пользователя
+    """
     model = User
     template_name = 'main/user_detail.html'
     context_object_name = 'user'
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs) -> Dict[str, Any]:
+        """
+        Добавление дополнительных данных в контекст шаблона.
+
+        Returns:
+            Dict[str, Any]: Расширенный контекст шаблона с дополнительными данными
+        """
         context = super().get_context_data(**kwargs)
         user = self.get_object()
-        context['dogs'] = user.get_all_dogs()
-        context['cats'] = user.get_all_cats()
-        context['upcoming_bookings'] = user.get_upcoming_bookings()
-        context['active_bookings_count'] = user.get_active_bookings_count()
+        context['animals'] = user.animals.all()
+        context['bookings'] = user.bookings.all()
+        if hasattr(user, 'dogsitter'):
+            context['is_dogsitter'] = True
+            context['dogsitter_bookings'] = user.dogsitter.bookings.all()
         return context
 
 
 class UserCreateView(CreateView):
+    """
+    Представление для создания нового пользователя.
+
+    Attributes:
+        model: Модель User для создания пользователя
+        template_name: Путь к шаблону формы создания
+        fields: Список полей формы для заполнения
+    """
     model = User
     template_name = 'main/user_form.html'
     fields = ['email', 'first_name', 'last_name', 'password']
 
 
 class UserUpdateView(LoginRequiredMixin, UpdateView):
+    """
+    Представление для обновления данных пользователя.
+    Требует аутентификации пользователя.
+
+    Attributes:
+        model: Модель User для обновления данных
+        template_name: Путь к шаблону формы обновления
+        fields: Список полей формы для редактирования
+    """
     model = User
     template_name = 'main/user_form.html'
     fields = ['email', 'first_name', 'last_name']
 
 
 class UserDeleteView(LoginRequiredMixin, DeleteView):
+    """
+    Представление для удаления пользователя.
+    Требует аутентификации пользователя.
+
+    Attributes:
+        model: Модель User для удаления пользователя
+        template_name: Путь к шаблону подтверждения удаления
+        success_url: URL для перенаправления после успешного удаления
+    """
     model = User
     template_name = 'main/user_confirm_delete.html'
     success_url = '/users/'
@@ -421,71 +481,108 @@ class UserDeleteView(LoginRequiredMixin, DeleteView):
 # Представления для модели Booking
 
 @login_required
-def booking_cancel(request, pk):
+def booking_cancel(request: HttpRequest, pk: int) -> HttpResponse:
     """
-    Отмена бронирования
+    Отмена бронирования.
+    Требует аутентификации пользователя.
+
+    Args:
+        request: Объект HTTP-запроса
+        pk: Идентификатор бронирования
+
+    Returns:
+        HttpResponse: Перенаправление на страницу со списком бронирований
+
+    Raises:
+        Http404: Если бронирование не найдено
     """
     booking = get_object_or_404(Booking, pk=pk)
     
-    if not booking.can_be_cancelled():
-        messages.error(request, "Это бронирование нельзя отменить")
-        # Использование get_absolute_url вместо хардкода URL
-        return HttpResponseRedirect(booking.get_absolute_url())
+    if booking.user != request.user and booking.dog_sitter.user != request.user:
+        raise Http404("У вас нет прав для отмены этого бронирования")
+    
+    if booking.status not in [Booking.STATUS_PENDING, Booking.STATUS_CONFIRMED]:
+        messages.error(request, "Невозможно отменить это бронирование")
+        return redirect('booking_detail', pk=pk)
     
     booking.status = Booking.STATUS_CANCELLED
     booking.save()
-    messages.success(request, "Бронирование успешно отменено")
     
-    # Использование get_absolute_url для перенаправления
-    return HttpResponseRedirect(booking.get_absolute_url())
+    messages.success(request, "Бронирование успешно отменено")
+    return redirect('booking_list')
 
 
 @login_required
-def booking_complete(request, pk):
+def booking_complete(request: HttpRequest, pk: int) -> HttpResponse:
     """
-    Завершение бронирования
+    Завершение бронирования.
+    Требует аутентификации пользователя.
+
+    Args:
+        request: Объект HTTP-запроса
+        pk: Идентификатор бронирования
+
+    Returns:
+        HttpResponse: Перенаправление на страницу со списком бронирований
+
+    Raises:
+        Http404: Если бронирование не найдено
     """
     booking = get_object_or_404(Booking, pk=pk)
     
+    if booking.user != request.user and booking.dog_sitter.user != request.user:
+        raise Http404("У вас нет прав для завершения этого бронирования")
+    
     if booking.status != Booking.STATUS_CONFIRMED:
-        messages.error(request, "Завершить можно только подтвержденное бронирование")
-        # Использование get_absolute_url
-        return HttpResponseRedirect(booking.get_absolute_url())
+        messages.error(request, "Невозможно завершить это бронирование")
+        return redirect('booking_detail', pk=pk)
     
     booking.status = Booking.STATUS_COMPLETED
     booking.save()
-    messages.success(request, "Бронирование успешно завершено")
     
-    # Перенаправление на страницу создания отзыва с использованием reverse
-    return HttpResponseRedirect(reverse('review_create', kwargs={'booking_id': booking.id}))
+    messages.success(request, "Бронирование успешно завершено")
+    return redirect('booking_list')
 
 
 class BookingDetailView(LoginRequiredMixin, DetailView):
+    """
+    Представление для отображения детальной информации о бронировании.
+    Требует аутентификации пользователя.
+
+    Attributes:
+        model: Модель Booking для работы с данными бронирования
+        template_name: Путь к шаблону для отображения информации
+        context_object_name: Имя переменной контекста для объекта бронирования
+    """
     model = Booking
     template_name = 'main/booking_detail.html'
     context_object_name = 'booking'
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self, **kwargs) -> Dict[str, Any]:
+        """
+        Добавление дополнительных данных в контекст шаблона.
+
+        Returns:
+            Dict[str, Any]: Расширенный контекст шаблона с дополнительными данными
+        """
         context = super().get_context_data(**kwargs)
         booking = self.get_object()
         
-        # Получаем ссылки на связанные объекты с использованием get_absolute_url
-        context['user_url'] = booking.get_user_url()
+        context['can_cancel'] = (
+            booking.status in [Booking.STATUS_PENDING, Booking.STATUS_CONFIRMED] and
+            (booking.user == self.request.user or booking.dog_sitter.user == self.request.user)
+        )
         
-        if booking.dog_sitter:
-            context['dogsitter_url'] = booking.get_dogsitter_url()
-            
-            
-        animals = booking.animals.all()
-        for animal in animals:
-            animal.url = animal.get_absolute_url()
-            
-        context['animals'] = animals
+        context['can_complete'] = (
+            booking.status == Booking.STATUS_CONFIRMED and
+            (booking.user == self.request.user or booking.dog_sitter.user == self.request.user)
+        )
         
-        # Формируем ссылки действий с использованием get_absolute_url
-        context['edit_url'] = booking.get_edit_url()
-        context['cancel_url'] = booking.get_cancel_url()
-        context['complete_url'] = booking.get_complete_url()
+        context['can_review'] = (
+            booking.status == Booking.STATUS_COMPLETED and
+            booking.user == self.request.user and
+            not hasattr(booking, 'review')
+        )
         
         return context
 
@@ -493,75 +590,132 @@ class BookingDetailView(LoginRequiredMixin, DetailView):
 # Представление для создания отзыва
 
 class ReviewCreateView(LoginRequiredMixin, CreateView):
+    """
+    Представление для создания отзыва о бронировании.
+    Требует аутентификации пользователя.
+
+    Attributes:
+        template_name: Путь к шаблону формы создания отзыва
+        fields: Список полей формы для заполнения
+    """
     template_name = 'main/review_form.html'
     fields = ['rating', 'comment']
 
-    def get_success_url(self):
-        # Использование reverse для получения URL
-        return f'/bookings/{self.kwargs["booking_id"]}/'
-    
-    def form_valid(self, form):
-        # Привязка к бронированию
-        booking_id = self.kwargs.get('booking_id')
-        booking = get_object_or_404(Booking, pk=booking_id)
-        form.instance.booking = booking
-        form.instance.date = timezone.now()
-        
+    def get_success_url(self) -> str:
+        """
+        Получение URL для перенаправления после успешного создания отзыва.
+
+        Returns:
+            str: URL страницы бронирования
+        """
+        return reverse('booking_detail', kwargs={'pk': self.object.booking.pk})
+
+    def form_valid(self, form) -> HttpResponse:
+        """
+        Обработка валидной формы создания отзыва.
+
+        Args:
+            form: Объект формы с валидными данными
+
+        Returns:
+            HttpResponse: Перенаправление на страницу бронирования
+        """
+        form.instance.booking = get_object_or_404(Booking, pk=self.kwargs['booking_id'])
+        form.instance.user = self.request.user
         return super().form_valid(form)
 
 
 # Пример использования Booking Manager
 
-def active_bookings(request):
+def active_bookings(request: HttpRequest) -> HttpResponse:
     """
-    Страница с активными бронированиями
+    Отображение списка активных бронирований.
+
+    Args:
+        request: Объект HTTP-запроса
+
+    Returns:
+        HttpResponse: Отрендеренная страница со списком активных бронирований
     """
-    # Используем метод active() из модельного менеджера
-    bookings = Booking.objects.active()
-    
-    return render(request, 'main/active_bookings.html', {
+    bookings: QuerySet[Booking] = Booking.objects.filter(
+        status=Booking.STATUS_CONFIRMED,
+        start_date__lte=timezone.now(),
+        end_date__gte=timezone.now()
+    ).select_related('user', 'dog_sitter')
+
+    context = {
         'bookings': bookings,
         'title': 'Активные бронирования'
-    })
+    }
+    return render(request, 'main/booking_list.html', context)
 
 
-def current_bookings(request):
+def current_bookings(request: HttpRequest) -> HttpResponse:
     """
-    Страница с текущими бронированиями
+    Отображение списка текущих бронирований пользователя.
+
+    Args:
+        request: Объект HTTP-запроса
+
+    Returns:
+        HttpResponse: Отрендеренная страница со списком текущих бронирований
     """
-    # Используем метод current() из модельного менеджера
-    bookings = Booking.objects.current()
-    
-    return render(request, 'main/current_bookings.html', {
+    bookings: QuerySet[Booking] = Booking.objects.filter(
+        user=request.user,
+        end_date__gte=timezone.now()
+    ).select_related('dog_sitter')
+
+    context = {
         'bookings': bookings,
-        'title': 'Текущие бронирования'
-    })
+        'title': 'Мои текущие бронирования'
+    }
+    return render(request, 'main/booking_list.html', context)
 
 
-def future_bookings(request):
+def future_bookings(request: HttpRequest) -> HttpResponse:
     """
-    Страница с предстоящими бронированиями
+    Отображение списка будущих бронирований.
+
+    Args:
+        request: Объект HTTP-запроса
+
+    Returns:
+        HttpResponse: Отрендеренная страница со списком будущих бронирований
     """
-    # Используем метод future() из модельного менеджера
-    bookings = Booking.objects.future()
-    
-    return render(request, 'main/future_bookings.html', {
+    bookings: QuerySet[Booking] = Booking.objects.filter(
+        start_date__gt=timezone.now()
+    ).select_related('user', 'dog_sitter')
+
+    context = {
         'bookings': bookings,
-        'title': 'Предстоящие бронирования'
-    })
+        'title': 'Будущие бронирования'
+    }
+    return render(request, 'main/booking_list.html', context)
 
 
-def long_term_bookings(request):
+def long_term_bookings(request: HttpRequest) -> HttpResponse:
     """
-    Страница с долгосрочными бронированиями
+    Отображение списка долгосрочных бронирований (более 7 дней).
+
+    Args:
+        request: Объект HTTP-запроса
+
+    Returns:
+        HttpResponse: Отрендеренная страница со списком долгосрочных бронирований
     """
-    # Используем метод long_term() из модельного менеджера
-    bookings = Booking.objects.long_term()
-    
-    return render(request, 'main/long_term_bookings.html', {
+    one_week = timezone.timedelta(days=7)
+    bookings: QuerySet[Booking] = Booking.objects.annotate(
+        duration=ExpressionWrapper(
+            F('end_date') - F('start_date'),
+            output_field=fields.DurationField()
+        )
+    ).filter(duration__gt=one_week)
+
+    context = {
         'bookings': bookings,
         'title': 'Долгосрочные бронирования'
-    })
+    }
+    return render(request, 'main/booking_list.html', context)
 
 
 def aggregation_annotation_examples(request):
@@ -688,92 +842,164 @@ def aggregation_annotation_examples(request):
     return render(request, 'main/aggregation_examples.html', context)
 
 @login_required
-def animal_delete(request, pk):
+def animal_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    """
+    Удаление животного.
+    Требует аутентификации пользователя.
+
+    Args:
+        request: Объект HTTP-запроса
+        pk: Идентификатор животного
+
+    Returns:
+        HttpResponse: Перенаправление на страницу со списком животных
+
+    Raises:
+        Http404: Если животное не найдено или у пользователя нет прав на удаление
+    """
     animal = get_object_or_404(Animal, pk=pk)
     
     if animal.user != request.user:
-        messages.error(request, "У вас нет прав для удаления этого животного")
-        return redirect('animal_list')
+        raise Http404("У вас нет прав для удаления этого животного")
+    
+    if animal.bookings.filter(
+        status__in=[Booking.STATUS_PENDING, Booking.STATUS_CONFIRMED],
+        end_date__gte=timezone.now()
+    ).exists():
+        messages.error(request, "Невозможно удалить животное с активными бронированиями")
+        return redirect('animal_detail', pk=pk)
     
     animal.delete()
-    messages.success(request, f"Животное {animal.name} было успешно удалено")
+    messages.success(request, "Животное успешно удалено")
     return redirect('animal_list')
 
 @login_required
-def add_animal_to_booking(request, booking_id, animal_id):
-    """Добавление животного в бронирование с обработкой ошибок"""
-    try:
-        booking = Booking.objects.get(pk=booking_id)
-        animal = Animal.objects.get(pk=animal_id)
-        
-        # Проверки
-        if booking.user != request.user:
-            messages.error(request, "Это не ваше бронирование")
-            return redirect('booking_list')
-            
-        if animal.user != request.user:
-            messages.error(request, "Это не ваше животное")
-            return redirect('booking_detail', pk=booking_id)
-            
-        if booking.status != Booking.STATUS_PENDING:
-            messages.error(request, "Можно добавлять животных только в ожидающие бронирования")
-            return redirect('booking_detail', pk=booking_id)
-        
-        # Добавляем животное
-        booking.animals.add(animal)
-        messages.success(request, f"{animal.name} добавлен(а) в бронирование")
-        
+def add_animal_to_booking(request: HttpRequest, booking_id: int, animal_id: int) -> HttpResponse:
+    """
+    Добавление животного в бронирование.
+    Требует аутентификации пользователя.
+
+    Args:
+        request: Объект HTTP-запроса
+        booking_id: Идентификатор бронирования
+        animal_id: Идентификатор животного
+
+    Returns:
+        HttpResponse: Перенаправление на страницу бронирования
+
+    Raises:
+        Http404: Если бронирование или животное не найдены
+    """
+    booking = get_object_or_404(Booking, pk=booking_id)
+    animal = get_object_or_404(Animal, pk=animal_id)
+    
+    if booking.user != request.user:
+        raise Http404("У вас нет прав для изменения этого бронирования")
+    
+    if animal.user != request.user:
+        raise Http404("Вы можете добавлять только своих животных")
+    
+    if booking.status != Booking.STATUS_PENDING:
+        messages.error(request, "Можно добавлять животных только в неподтвержденные бронирования")
         return redirect('booking_detail', pk=booking_id)
-        
-    except Booking.DoesNotExist:
-        raise Http404("Бронирование не найдено")
-    except Animal.DoesNotExist:
-        raise Http404("Животное не найдено")
+    
+    # Проверяем, не пересекается ли это бронирование с другими для этого животного
+    conflicting_bookings = animal.bookings.filter(
+        status__in=[Booking.STATUS_PENDING, Booking.STATUS_CONFIRMED],
+        start_date__lt=booking.end_date,
+        end_date__gt=booking.start_date
+    ).exclude(pk=booking_id)
+    
+    if conflicting_bookings.exists():
+        messages.error(request, "У животного есть пересекающиеся бронирования на эти даты")
+        return redirect('booking_detail', pk=booking_id)
+    
+    booking.animals.add(animal)
+    messages.success(request, f"Животное {animal.name} добавлено в бронирование")
+    return redirect('booking_detail', pk=booking_id)
 
 @login_required
-def toggle_dogsitter_availability(request, pk):
-    """Переключение доступности догситтера с редиректом на реферер"""
-    dogsitter = get_object_or_404(DogSitter, user=request.user)
+def toggle_dogsitter_availability(request: HttpRequest, pk: int) -> HttpResponse:
+    """
+    Переключение статуса доступности догситтера.
+    Требует аутентификации пользователя.
+
+    Args:
+        request: Объект HTTP-запроса
+        pk: Идентификатор догситтера
+
+    Returns:
+        HttpResponse: Перенаправление на страницу профиля догситтера
+
+    Raises:
+        Http404: Если догситтер не найден или у пользователя нет прав
+    """
+    dogsitter = get_object_or_404(DogSitter, pk=pk)
     
-    # Переключаем статус
+    if dogsitter.user != request.user:
+        raise Http404("У вас нет прав для изменения статуса этого догситтера")
+    
     dogsitter.is_available = not dogsitter.is_available
     dogsitter.save()
     
-    # Сообщение о результате
     status = "доступен" if dogsitter.is_available else "недоступен"
-    messages.info(request, f"Ваш статус изменен на: {status}")
-    
-    # Редирект на предыдущую страницу или профиль
-    next_page = request.META.get('HTTP_REFERER')
-    if next_page:
-        return redirect(next_page)
-    return redirect('dogsitter_profile')
+    messages.success(request, f"Ваш статус изменен на: {status}")
+    return redirect('dogsitter_profile', pk=pk)
 
 @login_required
-def create_review(request, booking_id):
-    """Создание отзыва с проверками и редиректами"""
+def create_review(request: HttpRequest, booking_id: int) -> HttpResponse:
+    """
+    Создание отзыва о бронировании.
+    Требует аутентификации пользователя.
+
+    Args:
+        request: Объект HTTP-запроса
+        booking_id: Идентификатор бронирования
+
+    Returns:
+        HttpResponse: Перенаправление на страницу бронирования или форму создания отзыва
+
+    Raises:
+        Http404: Если бронирование не найдено или у пользователя нет прав
+    """
     booking = get_object_or_404(Booking, pk=booking_id)
     
-    # Проверяем, можно ли оставить отзыв
     if booking.user != request.user:
-        messages.error(request, "Вы не можете оставить отзыв на чужое бронирование")
-        return redirect('booking_list')
-        
+        raise Http404("Вы можете оставлять отзывы только о своих бронированиях")
+    
     if booking.status != Booking.STATUS_COMPLETED:
-        messages.error(request, "Отзыв можно оставить только на завершённое бронирование")
+        messages.error(request, "Можно оставлять отзывы только о завершенных бронированиях")
         return redirect('booking_detail', pk=booking_id)
-        
+    
     if hasattr(booking, 'review'):
-        messages.error(request, "Вы уже оставили отзыв на это бронирование")
+        messages.error(request, "Вы уже оставили отзыв об этом бронировании")
         return redirect('booking_detail', pk=booking_id)
     
     if request.method == 'POST':
-        # Создаем отзыв
+        rating = int(request.POST.get('rating', 0))
+        comment = request.POST.get('comment', '')
+        
+        if not (1 <= rating <= 5):
+            messages.error(request, "Оценка должна быть от 1 до 5")
+            return redirect('create_review', booking_id=booking_id)
+        
         review = Review.objects.create(
             booking=booking,
-            rating=request.POST.get('rating'),
-            comment=request.POST.get('comment')
+            user=request.user,
+            rating=rating,
+            comment=comment
         )
+        
+        # Обновляем рейтинг догситтера
+        dogsitter = booking.dog_sitter
+        avg_rating = Review.objects.filter(
+            booking__dog_sitter=dogsitter,
+            booking__status=Booking.STATUS_COMPLETED
+        ).aggregate(Avg('rating'))['rating__avg']
+        
+        dogsitter.rating = round(avg_rating, 1) if avg_rating else 0.0
+        dogsitter.save()
+        
         messages.success(request, "Спасибо за ваш отзыв!")
         return redirect('booking_detail', pk=booking_id)
     
@@ -813,198 +1039,267 @@ def cancel_booking_with_refund(request, booking_id):
 
 @api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
-def booking_detail_api(request, pk):
+def booking_detail_api(request: HttpRequest, pk: int) -> Response:
     """
-    API endpoint для получения и обновления информации о бронировании
+    API-представление для получения и обновления информации о бронировании.
+    Требует аутентификации пользователя.
+
+    Args:
+        request: Объект HTTP-запроса
+        pk: Идентификатор бронирования
+
+    Returns:
+        Response: JSON-ответ с данными бронирования или результатом обновления
+
+    Raises:
+        Http404: Если бронирование не найдено
     """
     booking = get_object_or_404(Booking, pk=pk)
-    
-    # Проверяем, что пользователь имеет доступ к этому бронированию
-    if booking.user != request.user and booking.dog_sitter.user != request.user:
-        return Response({"error": "У вас нет доступа к этому бронированию"}, status=403)
-    
+
     if request.method == 'GET':
-        # Получаем связанные данные
-        booking_data = {
+        data = {
             'id': booking.id,
+            'status': booking.get_status_display(),
             'start_date': booking.start_date,
             'end_date': booking.end_date,
-            'status': booking.status,
+            'total_price': str(booking.total_price),
+            'user': {
+                'id': booking.user.id,
+                'name': f"{booking.user.first_name} {booking.user.last_name}"
+            },
+            'dog_sitter': {
+                'id': booking.dog_sitter.id,
+                'name': f"{booking.dog_sitter.user.first_name} {booking.dog_sitter.user.last_name}"
+            } if booking.dog_sitter else None,
+            'animals': [
+                {
+                    'id': animal.id,
+                    'name': animal.name,
+                    'type': animal.get_type_display()
+                }
+                for animal in booking.animals.all()
+            ],
+            'services': [
+                {
+                    'id': service.id,
+                    'name': service.name,
+                    'price': str(service.price)
+                }
+                for service in booking.services.all()
+            ]
+        }
+        return Response(data)
+
+    elif request.method == 'PATCH':
+        if 'status' in request.data:
+            booking.status = request.data['status']
+            booking.save()
+            return Response({'status': 'updated'})
+        return Response({'error': 'No status provided'}, status=400)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_bookings_by_user(request: HttpRequest) -> Response:
+    """
+    API-представление для получения списка бронирований пользователя (для администраторов).
+    Требует аутентификации пользователя и прав администратора.
+
+    Args:
+        request: Объект HTTP-запроса с параметрами фильтрации
+            - user_id: ID пользователя
+            - status: статус бронирования
+            - start_date: начальная дата
+            - end_date: конечная дата
+
+    Returns:
+        Response: JSON-ответ со списком бронирований пользователя
+
+    Raises:
+        PermissionDenied: Если у пользователя нет прав администратора
+    """
+    if not request.user.is_staff:
+        return Response(
+            {"error": "Требуются права администратора"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    user_id = request.GET.get('user_id')
+    if not user_id:
+        return Response(
+            {"error": "Не указан ID пользователя"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    bookings: QuerySet[Booking] = Booking.objects.filter(user_id=user_id)
+
+    # Фильтрация по статусу
+    booking_status = request.GET.get('status')
+    if booking_status:
+        bookings = bookings.filter(status=booking_status)
+
+    # Фильтрация по датам
+    start_date = request.GET.get('start_date')
+    if start_date:
+        bookings = bookings.filter(start_date__gte=start_date)
+
+    end_date = request.GET.get('end_date')
+    if end_date:
+        bookings = bookings.filter(end_date__lte=end_date)
+
+    data = [
+        {
+            'id': booking.id,
+            'status': booking.get_status_display(),
+            'start_date': booking.start_date,
+            'end_date': booking.end_date,
             'total_price': str(booking.total_price),
             'dog_sitter': {
                 'id': booking.dog_sitter.id,
-                'user': {
-                    'first_name': booking.dog_sitter.user.first_name,
-                    'last_name': booking.dog_sitter.user.last_name
-                }
-            },
-            'animals': [{
-                'id': animal.id,
-                'name': animal.name,
-                'type': animal.type,
-                'size': animal.size
-            } for animal in booking.animals.all()],
-            'services': [{
-                'id': service.id,
-                'name': service.name,
-                'price': str(service.price)
-            } for service in booking.services.all()]
-        }
-        return Response(booking_data)
-    
-    elif request.method == 'PATCH':
-        # Проверяем, можно ли редактировать бронирование
-        if booking.status not in ['pending', 'confirmed']:
-            return Response({"error": "Нельзя редактировать завершенное или отмененное бронирование"}, status=400)
-        
-        # Обновляем данные
-        if 'start_date' in request.data:
-            booking.start_date = request.data['start_date']
-        if 'end_date' in request.data:
-            booking.end_date = request.data['end_date']
-        if 'services' in request.data:
-            booking.services.set(request.data['services'])
-        
-        try:
-            booking.save()
-            
-            # Возвращаем обновленные данные
-            return Response({
-                'id': booking.id,
-                'start_date': booking.start_date,
-                'end_date': booking.end_date,
-                'status': booking.status,
-                'total_price': str(booking.total_price),
-                'services': [{
-                    'id': service.id,
-                    'name': service.name,
-                    'price': str(service.price)
-                } for service in booking.services.all()]
-            })
-        except ValueError as e:
-            return Response({"error": str(e)}, status=400)
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def admin_bookings_by_user(request):
-    """
-    API endpoint для получения бронирований, сгруппированных по пользователям (только для администраторов)
-    """
-    if not request.user.is_superuser:
-        return Response({"error": "Доступ запрещен"}, status=403)
-    
-    # Получаем всех пользователей с бронированиями
-    users_with_bookings = User.objects.filter(bookings__isnull=False).distinct()
-    
-    # Формируем данные по каждому пользователю
-    result = []
-    for user in users_with_bookings:
-        user_bookings = Booking.objects.filter(user=user).order_by('-start_date')
-        bookings_data = []
-        
-        for booking in user_bookings:
-            booking_data = {
-                'id': booking.id,
-                'start_date': booking.start_date,
-                'end_date': booking.end_date,
-                'status': booking.status,
-                'total_price': str(booking.total_price),
-                'dog_sitter': {
-                    'id': booking.dog_sitter.id,
-                    'user': {
-                        'first_name': booking.dog_sitter.user.first_name,
-                        'last_name': booking.dog_sitter.user.last_name
-                    }
-                } if booking.dog_sitter else None,
-                'animals': [{
+                'name': f"{booking.dog_sitter.user.first_name} {booking.dog_sitter.user.last_name}"
+            } if booking.dog_sitter else None,
+            'animals': [
+                {
                     'id': animal.id,
                     'name': animal.name,
-                    'type': animal.type,
-                    'size': animal.size
-                } for animal in booking.animals.all()],
-                'services': [{
+                    'type': animal.get_type_display()
+                }
+                for animal in booking.animals.all()
+            ],
+            'services': [
+                {
                     'id': service.id,
                     'name': service.name,
                     'price': str(service.price)
-                } for service in booking.services.all()]
-            }
-            bookings_data.append(booking_data)
-        
-        user_data = {
-            'id': user.id,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'email': user.email,
-            'bookings': bookings_data
+                }
+                for service in booking.services.all()
+            ]
         }
-        result.append(user_data)
-    
-    return Response(result)
+        for booking in bookings
+    ]
+
+    return Response(data)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def admin_animals_by_user(request):
+def admin_animals_by_user(request: HttpRequest) -> Response:
     """
-    API endpoint для получения животных, сгруппированных по пользователям (только для администраторов)
-    """
-    if not request.user.is_superuser:
-        return Response({"error": "Доступ запрещен"}, status=403)
-    
-    # Получаем всех пользователей с животными
-    users_with_animals = User.objects.filter(animals__isnull=False).distinct()
-    
-    # Формируем данные по каждому пользователю
-    result = []
-    for user in users_with_animals:
-        user_animals = Animal.objects.filter(user=user).order_by('name')
-        animals_data = []
-        
-        for animal in user_animals:
-            animal_data = {
-                'id': animal.id,
-                'name': animal.name,
-                'type': animal.type,
-                'breed': animal.breed,
-                'age': animal.age,
-                'size': animal.size,
-                'special_needs': animal.special_needs,
-                'photo': animal.photo.url if animal.photo else None,
-                'bookings_count': animal.bookings.count()
-            }
-            animals_data.append(animal_data)
-        
-        user_data = {
-            'id': user.id,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'email': user.email,
-            'animals': animals_data
-        }
-        result.append(user_data)
-    
-    return Response(result)
+    API-представление для получения списка животных пользователя (для администраторов).
+    Требует аутентификации пользователя и прав администратора.
 
-@api_view(['GET'])
-def animal_list_api(request):
-    """API endpoint для получения списка животных пользователя"""
-    if not request.user.is_authenticated:
-        return Response({"error": "Требуется авторизация"}, status=401)
-    
-    animals = Animal.objects.filter(user=request.user)
-    data = []
-    for animal in animals:
-        animal_data = {
+    Args:
+        request: Объект HTTP-запроса с параметрами фильтрации
+            - user_id: ID пользователя
+            - type: тип животного
+            - size: размер животного
+
+    Returns:
+        Response: JSON-ответ со списком животных пользователя
+
+    Raises:
+        PermissionDenied: Если у пользователя нет прав администратора
+    """
+    if not request.user.is_staff:
+        return Response(
+            {"error": "Требуются права администратора"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    user_id = request.GET.get('user_id')
+    if not user_id:
+        return Response(
+            {"error": "Не указан ID пользователя"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    animals: QuerySet[Animal] = Animal.objects.filter(user_id=user_id)
+
+    # Фильтрация по типу животного
+    animal_type = request.GET.get('type')
+    if animal_type:
+        animals = animals.filter(type=animal_type)
+
+    # Фильтрация по размеру
+    size = request.GET.get('size')
+    if size:
+        animals = animals.filter(size=size)
+
+    data = [
+        {
             'id': animal.id,
             'name': animal.name,
-            'type': animal.type,
+            'type': animal.get_type_display(),
             'breed': animal.breed,
             'age': animal.age,
-            'size': animal.size,
-            'special_needs': animal.special_needs,
-            'photo': animal.photo.url if animal.photo else None,
-            'bookings_count': animal.bookings.count()
+            'size': animal.get_size_display(),
+            'bookings_count': animal.bookings.count(),
+            'active_bookings': animal.bookings.filter(
+                status__in=[Booking.STATUS_PENDING, Booking.STATUS_CONFIRMED],
+                end_date__gte=timezone.now()
+            ).count()
         }
-        data.append(animal_data)
+        for animal in animals
+    ]
+
+    return Response(data)
+
+@api_view(['GET'])
+def animal_list_api(request: HttpRequest) -> Response:
+    """
+    API-представление для получения списка животных с возможностью фильтрации.
+
+    Args:
+        request: Объект HTTP-запроса с параметрами фильтрации
+            - type: тип животного
+            - size: размер животного
+            - breed: порода животного
+            - age_min: минимальный возраст
+            - age_max: максимальный возраст
+
+    Returns:
+        Response: JSON-ответ со списком отфильтрованных животных
+    """
+    animals: QuerySet[Animal] = Animal.objects.all()
+
+    # Фильтрация по типу животного
+    animal_type = request.GET.get('type')
+    if animal_type:
+        animals = animals.filter(type=animal_type)
+
+    # Фильтрация по размеру
+    size = request.GET.get('size')
+    if size:
+        animals = animals.filter(size=size)
+
+    # Фильтрация по породе
+    breed = request.GET.get('breed')
+    if breed:
+        animals = animals.filter(breed__icontains=breed)
+
+    # Фильтрация по возрасту
+    age_min = request.GET.get('age_min')
+    if age_min:
+        animals = animals.filter(age__gte=int(age_min))
+
+    age_max = request.GET.get('age_max')
+    if age_max:
+        animals = animals.filter(age__lte=int(age_max))
+
+    data = [
+        {
+            'id': animal.id,
+            'name': animal.name,
+            'type': animal.get_type_display(),
+            'breed': animal.breed,
+            'age': animal.age,
+            'size': animal.get_size_display(),
+            'owner': {
+                'id': animal.user.id,
+                'name': f"{animal.user.first_name} {animal.user.last_name}"
+            }
+        }
+        for animal in animals
+    ]
+
     return Response(data)
 
 @api_view(['GET', 'PUT', 'DELETE'])

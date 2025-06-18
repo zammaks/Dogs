@@ -13,10 +13,15 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 import os
 from datetime import timedelta
+import sentry_sdk
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+sentry_sdk.init(
+    dsn="https://9c26cb4e622e5281ec13471b5b4ee367@o4509519969517568.ingest.de.sentry.io/4509519973318736",
+    traces_sample_rate=1.0,
+)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -44,9 +49,13 @@ INSTALLED_APPS = [
     'django_filters',
     'main',
     'users',
+    'silk', 
 ]
 
+
+
 MIDDLEWARE = [
+    'silk.middleware.SilkyMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -187,3 +196,19 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
+
+# Настройки Silk
+SILKY_PYTHON_PROFILER = True
+SILKY_PYTHON_PROFILER_BINARY = True
+SILKY_AUTHENTICATION = True
+SILKY_AUTHORISATION = True
+SILKY_META = True
+SILKY_INTERCEPT_PERCENT = 100
+SILKY_MAX_RECORDED_REQUESTS = 1000
+SILKY_MAX_RECORDED_REQUESTS_CHECK_PERCENT = 10
+
+def SILKY_PERMISSIONS(user): 
+    return user.is_superuser or user.is_staff
+
+def SILKY_AUTHENTICATION_VALIDATOR(user):
+    return user.is_authenticated

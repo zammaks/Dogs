@@ -21,6 +21,7 @@ from .views_annotations import (
     get_dogsitter_with_ratings,
     get_bookings_with_ratings
 )
+import sentry_sdk
 
 def index(request):
     return render(request, 'main/index.html')
@@ -296,4 +297,28 @@ def block_dogsitter(request, pk):
         return Response(
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        ) 
+        )
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def sentry_debug(request):
+    try:
+        sentry_sdk.set_context("test_context", {
+            "test_key": "test_value",
+            "environment": "development",
+            "endpoint": "/sentry-debug/"
+        })
+        
+        sentry_sdk.set_tag("test_error", "division_by_zero")
+        
+        sentry_sdk.add_breadcrumb(
+            category='test',
+            message='Attempting division by zero',
+            level='info',
+        )
+        
+        division_by_zero = 1 / 0
+        return Response({"message": "Этот код не должен выполниться из-за ошибки выше"})
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        raise 
