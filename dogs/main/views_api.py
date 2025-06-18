@@ -4,6 +4,7 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
+from django_filters.rest_framework import DjangoFilterBackend
 from django.contrib.auth import authenticate
 from django.db import IntegrityError
 from django.db.models import Q, Count, Avg
@@ -11,6 +12,7 @@ from .models import DogSitter, Booking, User, Animal, Service, Review
 from .serializers import DogSitterSerializer, BookingSerializer, UserSerializer, AnimalSerializer, ServiceSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from .permissions import IsSuperUser
+from .filters import DogSitterFilter
 from .views_annotations import (
     get_dogsitter_statistics,
     get_animal_statistics,
@@ -91,6 +93,8 @@ def login_view(request):
 class DogSitterViewSet(viewsets.ModelViewSet):
     serializer_class = DogSitterSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = DogSitterFilter
 
     def get_queryset(self):
         """

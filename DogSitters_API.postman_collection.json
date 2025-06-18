@@ -1,0 +1,284 @@
+{
+	"info": {
+		"_postman_id": "b5e2f3c4-1d2a-4e5f-8c9b-0a1b2c3d4e5f",
+		"name": "DogSitters API",
+		"description": "API для сервиса поиска догситтеров",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Аутентификация",
+			"item": [
+				{
+					"name": "Регистрация",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"test123\",\n    \"first_name\": \"Иван\",\n    \"last_name\": \"Петров\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8000/api/auth/register/",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8000",
+							"path": ["api", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Вход",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"test123\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8000/api/auth/login/",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8000",
+							"path": ["api", "auth", "login"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Догситтеры",
+			"item": [
+				{
+					"name": "Получить список догситтеров",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8000/api/dogsitters/",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8000",
+							"path": ["api", "dogsitters"],
+							"query": [
+								{
+									"key": "min_rating",
+									"value": "4.5",
+									"disabled": true
+								},
+								{
+									"key": "max_rating",
+									"value": "5",
+									"disabled": true
+								},
+								{
+									"key": "min_experience",
+									"value": "2",
+									"disabled": true
+								},
+								{
+									"key": "max_experience",
+									"value": "5",
+									"disabled": true
+								},
+								{
+									"key": "min_reviews",
+									"value": "10",
+									"disabled": true
+								},
+								{
+									"key": "has_reviews",
+									"value": "true",
+									"disabled": true
+								},
+								{
+									"key": "is_available",
+									"value": "true",
+									"disabled": true
+								},
+								{
+									"key": "sort_by",
+									"value": "rating",
+									"disabled": true
+								},
+								{
+									"key": "name",
+									"value": "Иван",
+									"disabled": true
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Получить догситтера по ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8000/api/dogsitters/1/",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8000",
+							"path": ["api", "dogsitters", "1"]
+						}
+					}
+				},
+				{
+					"name": "Удалить догситтера",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8000/api/dogsitters/1/",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8000",
+							"path": ["api", "dogsitters", "1"]
+						}
+					}
+				},
+				{
+					"name": "Заблокировать догситтера",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8000/api/dogsitters/1/block/",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8000",
+							"path": ["api", "dogsitters", "1", "block"]
+						}
+					}
+				},
+				{
+					"name": "Разблокировать догситтера",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8000/api/dogsitters/1/unblock/",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8000",
+							"path": ["api", "dogsitters", "1", "unblock"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Бронирования",
+			"item": [
+				{
+					"name": "Получить список бронирований",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8000/api/bookings/",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8000",
+							"path": ["api", "bookings"]
+						}
+					}
+				},
+				{
+					"name": "Создать бронирование",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"dog_sitter\": 1,\n    \"start_date\": \"2024-04-01\",\n    \"end_date\": \"2024-04-05\",\n    \"animals\": [1, 2],\n    \"services\": [1, 3]\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8000/api/bookings/",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8000",
+							"path": ["api", "bookings"]
+						}
+					}
+				},
+				{
+					"name": "Отменить бронирование",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8000/api/bookings/1/cancel/",
+							"protocol": "http",
+							"host": ["localhost"],
+							"port": "8000",
+							"path": ["api", "bookings", "1", "cancel"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "token",
+			"value": "your_jwt_token_here"
+		}
+	]
+} 

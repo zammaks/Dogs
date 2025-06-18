@@ -48,20 +48,99 @@
       </div>
     </div>
     
-    <!-- Добавляем панель сортировки -->
-    <div class="sort-panel">
-      <label for="sortBy">Сортировать по:</label>
-      <select v-model="sortBy" id="sortBy" class="sort-select">
-        <option value="">Без сортировки</option>
-        <option value="rating">Рейтингу</option>
-        <option value="experience">Опыту</option>
-      </select>
-      <button 
-        @click="toggleSortDirection" 
-        class="sort-direction"
-        :title="sortDirection === 'asc' ? 'По возрастанию' : 'По убыванию'"
-      >
-        {{ sortDirection === 'asc' ? '↑' : '↓' }}
+    <!-- Добавляем панель фильтров -->
+    <div class="filters-panel">
+      <div class="filter-group">
+        <label>Рейтинг:</label>
+        <div class="rating-filter">
+          <input 
+            type="number" 
+            v-model.number="filters.min_rating" 
+            min="0" 
+            max="5" 
+            step="0.5"
+            placeholder="Мин"
+          >
+          <span>-</span>
+          <input 
+            type="number" 
+            v-model.number="filters.max_rating" 
+            min="0" 
+            max="5" 
+            step="0.5"
+            placeholder="Макс"
+          >
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <label>Опыт (лет):</label>
+        <div class="experience-filter">
+          <input 
+            type="number" 
+            v-model.number="filters.min_experience" 
+            min="0"
+            placeholder="Мин"
+          >
+          <span>-</span>
+          <input 
+            type="number" 
+            v-model.number="filters.max_experience" 
+            min="0"
+            placeholder="Макс"
+          >
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <label>Отзывы:</label>
+        <div class="reviews-filter">
+          <input 
+            type="number" 
+            v-model.number="filters.min_reviews" 
+            min="0"
+            placeholder="Мин. кол-во"
+          >
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <label>
+          <input 
+            type="checkbox" 
+            v-model="filters.has_reviews"
+          >
+          Только с отзывами
+        </label>
+      </div>
+
+      <div class="filter-group">
+        <label>
+          <input 
+            type="checkbox" 
+            v-model="filters.is_available"
+          >
+          Только доступные
+        </label>
+      </div>
+
+      <div class="filter-group">
+        <label>Сортировать по:</label>
+        <select v-model="filters.sort_by">
+          <option value="">Без сортировки</option>
+          <option value="rating">Рейтингу (по убыванию)</option>
+          <option value="rating_asc">Рейтингу (по возрастанию)</option>
+          <option value="experience">Опыту (по убыванию)</option>
+          <option value="experience_asc">Опыту (по возрастанию)</option>
+          <option value="reviews">Отзывам (по убыванию)</option>
+          <option value="reviews_asc">Отзывам (по возрастанию)</option>
+          <option value="name">Имени (А-Я)</option>
+          <option value="name_desc">Имени (Я-А)</option>
+        </select>
+      </div>
+
+      <button @click="resetFilters" class="reset-filters">
+        Сбросить фильтры
       </button>
     </div>
 
@@ -139,7 +218,7 @@
 
 <script>
 import axios from 'axios'
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useStore } from 'vuex'
 import { api, endpoints } from '../api/config'
 import { useRouter } from 'vue-router'
@@ -152,14 +231,39 @@ export default {
     const dogsitters = ref([])
     const loading = ref(true)
     const error = ref(null)
-    const sortBy = ref('')
-    const sortDirection = ref('desc')
     const searchQuery = ref('')
     const showSuggestions = ref(false)
     let hideTimeout = null
     const showDeleteConfirmation = ref(false)
     const deleteLoading = ref(false)
     const selectedDogsitter = ref(null)
+
+    // Добавляем состояние для фильтров
+    const filters = ref({
+      min_rating: null,
+      max_rating: null,
+      min_experience: null,
+      max_experience: null,
+      min_reviews: null,
+      has_reviews: false,
+      is_available: false,
+      sort_by: ''
+    })
+
+    // Функция для сброса фильтров
+    const resetFilters = () => {
+      filters.value = {
+        min_rating: null,
+        max_rating: null,
+        min_experience: null,
+        max_experience: null,
+        min_reviews: null,
+        has_reviews: false,
+        is_available: false,
+        sort_by: ''
+      }
+      fetchDogSitters()
+    }
 
     const isAdmin = computed(() => {
       const user = store.state.auth.user
@@ -222,7 +326,20 @@ export default {
       try {
         loading.value = true
         error.value = null
-        const response = await api.get('/dogsitters/')
+
+        // Формируем параметры запроса из фильтров
+        const params = {}
+        if (filters.value.min_rating !== null) params.min_rating = filters.value.min_rating
+        if (filters.value.max_rating !== null) params.max_rating = filters.value.max_rating
+        if (filters.value.min_experience !== null) params.min_experience = filters.value.min_experience
+        if (filters.value.max_experience !== null) params.max_experience = filters.value.max_experience
+        if (filters.value.min_reviews !== null) params.min_reviews = filters.value.min_reviews
+        if (filters.value.has_reviews) params.has_reviews = true
+        if (filters.value.is_available) params.is_available = true
+        if (filters.value.sort_by) params.sort_by = filters.value.sort_by
+        if (searchQuery.value) params.name = searchQuery.value
+
+        const response = await api.get('/dogsitters/', { params })
         console.log('API Response:', response)
         console.log('Loaded dogsitters:', response.data)
         console.log('First dogsitter data:', response.data[0])
@@ -235,9 +352,10 @@ export default {
       }
     }
 
-    const toggleSortDirection = () => {
-      sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
-    }
+    // Следим за изменениями фильтров
+    watch([filters, searchQuery], () => {
+      fetchDogSitters()
+    }, { deep: true })
 
     const handleSearch = () => {
       if (hideTimeout) {
@@ -285,18 +403,24 @@ export default {
       }
 
       // Сортировка
-      if (!sortBy.value) return filtered
+      if (!filters.value.sort_by) return filtered
 
       return [...filtered].sort((a, b) => {
         let comparison = 0
         
-        if (sortBy.value === 'rating') {
+        if (filters.value.sort_by === 'rating') {
           comparison = b.rating - a.rating
-        } else if (sortBy.value === 'experience') {
+        } else if (filters.value.sort_by === 'experience') {
           comparison = (b.experience_years || 0) - (a.experience_years || 0)
+        } else if (filters.value.sort_by === 'reviews') {
+          comparison = (b.reviews_count || 0) - (a.reviews_count || 0)
+        } else if (filters.value.sort_by === 'name') {
+          comparison = a.first_name.localeCompare(b.first_name)
+        } else if (filters.value.sort_by === 'name_desc') {
+          comparison = b.first_name.localeCompare(a.first_name)
         }
 
-        return sortDirection.value === 'asc' ? -comparison : comparison
+        return comparison
       })
     })
 
@@ -345,9 +469,6 @@ export default {
       getAgeString,
       getExperienceString,
       getPhotoUrl,
-      sortBy,
-      sortDirection,
-      toggleSortDirection,
       searchQuery,
       showSuggestions,
       handleSearch,
@@ -362,7 +483,9 @@ export default {
       showDeleteModal,
       closeDeleteModal,
       confirmDelete,
-      isAdmin
+      isAdmin,
+      filters,
+      resetFilters
     }
   }
 }
@@ -794,5 +917,66 @@ export default {
   display: flex;
   justify-content: flex-end;
   margin-top: 8px;
+}
+
+.filters-panel {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-group label {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.rating-filter,
+.experience-filter,
+.reviews-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rating-filter input,
+.experience-filter input,
+.reviews-filter input {
+  width: 80px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.filter-group select {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  min-width: 200px;
+}
+
+.reset-filters {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.reset-filters:hover {
+  background: #c0392b;
 }
 </style> 
