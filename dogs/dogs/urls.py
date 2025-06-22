@@ -29,11 +29,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('main.urls')),
     path('sentry-debug/', trigger_error),
-    path('api/', include('main.urls')),  # Добавляем префикс api/
+    path('api/', include('main.urls')),
     path('api/auth/', include('users.urls')),
-    # Добавляем URL-маршруты для аутентификации
     path('accounts/login/', auth_views.LoginView.as_view(template_name='admin/login.html'), name='login'),
     path('accounts/logout/', auth_views.LogoutView.as_view(next_page='/'), name='logout'),
+    path('social/', include('social_django.urls', namespace='social')),
 ]
 
 if settings.DEBUG:

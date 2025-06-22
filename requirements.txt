@@ -18,4 +18,7 @@ sqlalchemy==2.0.23
 channels==4.0.0
 channels-redis==4.1.0
 daphne==4.0.0
-django-mail-templated==2.6.5 
+django-mail-templated==2.6.5
+social-auth-app-django==5.4.0
+whitenoise==6.6.0
+gunicorn==21.2.0 

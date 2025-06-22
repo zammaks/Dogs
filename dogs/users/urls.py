@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -7,6 +7,7 @@ from .views import (
     RegisterView,
     UserProfileView,
     UserUpdateView,
+    yandex_callback,
 )
 
 urlpatterns = [
@@ -15,4 +16,5 @@ urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
     path('profile/', UserProfileView.as_view(), name='profile'),
     path('update/', UserUpdateView.as_view(), name='update'),
+    path('yandex/callback/', yandex_callback, name='yandex-callback'),
 ] 

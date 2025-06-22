@@ -29,6 +29,11 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/auth/yandex/callback',
+    name: 'YandexCallback',
+    component: () => import('../views/AuthCallback.vue')
+  },
+  {
     path: '/my-animals',
     name: 'MyAnimals',
     component: MyAnimals,
@@ -37,7 +42,8 @@ const routes = [
   {
     path: '/my-animals/:id',
     name: 'AnimalDetails',
-    component: AnimalDetails
+    component: AnimalDetails,
+    meta: { requiresAuth: true }
   },
   {
     path: '/dogsitters',

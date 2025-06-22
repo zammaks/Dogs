@@ -9,6 +9,8 @@ from main.models import Booking
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from dogs.celery import app
+import subprocess
+import os
 
 @shared_task
 def check_inactive_users():
@@ -67,6 +69,63 @@ def cleanup_old_sessions():
     old_sessions.delete()
     
     return f"Удалено {count} старых сессий"
+
+@shared_task
+def backup_database():
+    """
+    Создает бэкап базы данных
+    """
+    try:
+        # Получаем настройки базы данных
+        db_settings = settings.DATABASES['default']
+        db_name = db_settings['NAME']
+        db_user = db_settings['USER']
+        db_host = db_settings['HOST']
+        db_port = db_settings['PORT']
+        
+        # Создаем директорию для бэкапов
+        backup_dir = '/backups'
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # Имя файла бэкапа
+        date_str = timezone.now().strftime('%Y%m%d_%H%M%S')
+        backup_file = f"{backup_dir}/dogs_db_{date_str}.sql"
+        
+        # Команда для создания бэкапа
+        cmd = [
+            'pg_dump',
+            '-h', db_host,
+            '-p', str(db_port),
+            '-U', db_user,
+            '-d', db_name,
+            '-f', backup_file
+        ]
+        
+        # Устанавливаем переменную окружения для пароля
+        env = os.environ.copy()
+        env['PGPASSWORD'] = db_settings['PASSWORD']
+        
+        # Выполняем команду
+        result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            # Сжимаем файл
+            subprocess.run(['gzip', backup_file])
+            
+            # Удаляем старые бэкапы (оставляем последние 7)
+            subprocess.run([
+                'find', backup_dir, 
+                '-name', 'dogs_db_*.sql.gz', 
+                '-mtime', '+7', 
+                '-delete'
+            ])
+            
+            return f"Бэкап создан успешно: {backup_file}.gz"
+        else:
+            return f"Ошибка создания бэкапа: {result.stderr}"
+            
+    except Exception as e:
+        return f"Ошибка при создании бэкапа: {str(e)}"
 
 @shared_task(name='main.tasks.send_profile_update_notification')
 def send_profile_update_notification(user_id):

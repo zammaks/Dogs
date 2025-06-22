@@ -1,4 +1,5 @@
 import { endpoints, getHeaders } from '../api/config'
+import AuthService from '../services/auth.service'
 
 export default {
   namespaced: true,
@@ -48,11 +49,32 @@ export default {
 
         commit('setToken', data.token)
         commit('setUser', data.user)
-        console.log('User data after login:', data.user)
         return true
       } catch (error) {
         console.error('Login error:', error)
         commit('setError', 'Ошибка сервера')
+        return false
+      }
+    },
+
+    async handleYandexCallback({ commit }, code) {
+      try {
+        commit('setError', null)
+        console.log('Обработка callback кода:', code)
+        
+        const authData = await AuthService.handleAuthCallback(code)
+        console.log('Получены данные авторизации:', authData)
+        
+        if (authData && authData.token) {
+          commit('setToken', authData.token)
+          commit('setUser', authData.user)
+          return true
+        }
+        
+        throw new Error('Не удалось получить данные авторизации')
+      } catch (error) {
+        console.error('Ошибка при обработке Яндекс авторизации:', error)
+        commit('setError', error.message || 'Ошибка авторизации через Яндекс')
         return false
       }
     },
@@ -82,6 +104,7 @@ export default {
     },
     
     logout({ commit }) {
+      AuthService.logout()
       commit('setToken', null)
       commit('setUser', null)
       commit('setError', null)
