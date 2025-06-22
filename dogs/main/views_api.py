@@ -22,6 +22,9 @@ from .views_annotations import (
     get_bookings_with_ratings
 )
 import sentry_sdk
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 
 def index(request):
     return render(request, 'main/index.html')
@@ -38,6 +41,19 @@ def register_view(request):
         )
         user.set_password(request.data.get('password'))
         user.save()
+        
+        # Отправляем приветственное письмо
+        html_message = render_to_string('email/welcome.html', {'user': user})
+        plain_message = strip_tags(html_message)
+        
+        send_mail(
+            subject='Добро пожаловать в сервис Dogs!',
+            message=plain_message,
+            html_message=html_message,
+            from_email='zam.maks2005@gmail.com',
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
         
         refresh = RefreshToken.for_user(user)
         return Response({

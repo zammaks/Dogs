@@ -1,5 +1,6 @@
 <template>
   <div id="app">
+    <Notification />
     <Accessibility />
     <nav class="navbar">
       <router-link to="/" class="nav-brand">DogSitters</router-link>
@@ -35,12 +36,14 @@ import { computed, ref, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import LogoutButton from './components/LogoutButton.vue'
 import Accessibility from './components/Accessibility.vue'
+import Notification from './components/Notification.vue'
 
 export default {
   name: 'App',
   components: {
     LogoutButton,
-    Accessibility
+    Accessibility,
+    Notification
   },
   setup() {
     const store = useStore()

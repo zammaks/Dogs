@@ -32,7 +32,7 @@ SECRET_KEY = 'django-insecure-h!rxh5nr(6o6e#e_&7-r$&o)2+vy4+_9!8!*+l%inofx+u%q+q
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     'main',
     'users',
     'silk', 
+    'django_celery_beat',
+    'channels',
 ]
 
 
@@ -71,7 +73,10 @@ ROOT_URLCONF = 'dogs.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'dogs', 'templates'),  # Путь к шаблонам в dogs/templates
+            os.path.join(BASE_DIR, 'templates'),  # Альтернативный путь
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -84,6 +89,17 @@ TEMPLATES = [
     },
 ]
 
+# ASGI application
+ASGI_APPLICATION = 'dogs.asgi.application'
+
+# Channels Configuration
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
+}
+
+# WSGI application
 WSGI_APPLICATION = 'dogs.wsgi.application'
 
 
@@ -168,13 +184,12 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:5175",
+    "http://127.0.0.1:5173",
 ]
-
-CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -212,3 +227,42 @@ def SILKY_PERMISSIONS(user):
 
 def SILKY_AUTHENTICATION_VALIDATOR(user):
     return user.is_authenticated
+
+# Настройки Celery
+# Для разработки используем SQLite, для продакшена - Redis
+CELERY_BROKER_URL = 'sqla+sqlite:///celery.db'
+CELERY_RESULT_BACKEND = 'db+sqlite:///celery_results.db'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# Настройки Email (для разработки)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'noreply@dogsitters.com'
+
+# Для продакшена используйте SMTP:
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'your-email@gmail.com'
+# EMAIL_HOST_PASSWORD = 'your-app-password'
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]
+
+# Email settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = '127.0.0.1'  # localhost в явном виде
+EMAIL_PORT = 1025  # порт SMTP MailHog
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = False
+EMAIL_HOST_USER = ''
+EMAIL_HOST_PASSWORD = ''
+DEFAULT_FROM_EMAIL = 'zam.maks2005@gmail.com'

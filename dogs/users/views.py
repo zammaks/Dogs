@@ -1,9 +1,26 @@
 from rest_framework import generics, parsers, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .serializers import UserSerializer, UserPhotoSerializer
-from .models import UserPhoto
+from .models import UserPhoto, User
+from main.tasks import send_profile_update_notification
+
+class RegisterView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [AllowAny]
+
+    def perform_create(self, serializer):
+        user = serializer.save()
+        return user
+
+class UserUpdateView(generics.UpdateAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
@@ -17,6 +34,16 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
+        
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        if response.status_code == 200:
+            # Отправляем задачу в Celery
+            try:
+                send_profile_update_notification.delay(request.user.id)
+            except Exception as e:
+                print(f"Error sending notification task: {e}")
+        return response
 
 class DeleteAccountView(APIView):
     permission_classes = [IsAuthenticated]

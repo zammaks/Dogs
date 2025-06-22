@@ -1,0 +1,81 @@
+{% block subject %}
+Добро пожаловать в сервис Dogs!
+{% endblock %}
+
+{% block body %}
+Здравствуйте, {{ user.first_name }}!
+
+Мы рады приветствовать вас в нашем сервисе для владельцев собак и догситтеров.
+
+С помощью нашего сервиса вы сможете:
+- Находить надёжных догситтеров
+- Управлять профилями ваших питомцев
+- Бронировать услуги по уходу за собаками
+- Получать уведомления о важных событиях
+
+Если у вас возникнут вопросы, не стесняйтесь обращаться в нашу службу поддержки.
+
+С уважением,
+Команда Dogs
+{% endblock %}
+
+{% block html %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #42b983;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+        }
+        .content {
+            padding: 20px;
+            background: #fff;
+            border-radius: 5px;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Добро пожаловать в Dogs!</h1>
+        </div>
+        <div class="content">
+            <h2>Здравствуйте, {{ user.first_name }}!</h2>
+            <p>Мы рады приветствовать вас в нашем сервисе для владельцев собак и догситтеров.</p>
+            <p>С помощью нашего сервиса вы сможете:</p>
+            <ul>
+                <li>Находить надёжных догситтеров</li>
+                <li>Управлять профилями ваших питомцев</li>
+                <li>Бронировать услуги по уходу за собаками</li>
+                <li>Получать уведомления о важных событиях</li>
+            </ul>
+            <p>Если у вас возникнут вопросы, не стесняйтесь обращаться в нашу службу поддержки.</p>
+        </div>
+        <div class="footer">
+            <p>С уважением,<br>Команда Dogs</p>
+        </div>
+    </div>
+</body>
+</html>
+{% endblock %} 

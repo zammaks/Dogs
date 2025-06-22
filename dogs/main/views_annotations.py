@@ -186,7 +186,11 @@ def get_user_statistics():
         ),
         
         # Средняя оценка оставленных отзывов
-        avg_review_rating=Avg('bookings__review__rating'),
+        avg_review_rating=Coalesce(
+            Avg('bookings__review__rating'),
+            Value(0.0),
+            output_field=FloatField()
+        ),
         
         # Количество разных догситтеров, с которыми работал
         unique_dogsitters=Count(
@@ -194,21 +198,12 @@ def get_user_statistics():
             distinct=True
         ),
         
-        # Предпочитаемый размер животных
-        preferred_pet_size=Case(
-            When(animals__size='small', then=Value('small')),
-            When(animals__size='medium', then=Value('medium')),
-            When(animals__size='large', then=Value('large')),
-            default=Value('no_preference'),
-            output_field=CharField()
-        ),
-        
         # Статус клиента
         client_status=Case(
-            When(bookings__count__gt=10, then=Value('VIP')),
-            When(bookings__count__gt=5, then=Value('Regular')),
-            When(bookings__count__gt=0, then=Value('New')),
-            default=Value('Inactive'),
+            When(total_spent__gt=10000, then=Value('premium')),
+            When(total_spent__gt=5000, then=Value('gold')),
+            When(total_spent__gt=1000, then=Value('silver')),
+            default=Value('regular'),
             output_field=CharField()
         )
     )
