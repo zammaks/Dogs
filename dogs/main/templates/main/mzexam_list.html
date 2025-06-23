@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Экзамены - Замятин Максим Анатольевич</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; }
+        h1, h2 { color: #2c3e50; }
+        .exam-card { border: 1px solid #ccc; border-radius: 8px; padding: 16px; margin-bottom: 20px; background: #f9f9f9; }
+        .exam-label { font-weight: bold; }
+        .exam-image { max-width: 300px; max-height: 200px; display: block; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <h1>Экзамены</h1>
+    <h2>ФИО: {{ fio }}</h2>
+    <h2>Группа: {{ group }}</h2>
+    <hr>
+    {% if exams %}
+        {% for exam in exams %}
+            <div class="exam-card">
+                <div><span class="exam-label">Название экзамена:</span> {{ exam.title }}</div>
+                <div><span class="exam-label">Дата создания записи:</span> {{ exam.created_at|date:'d.m.Y H:i' }}</div>
+                <div><span class="exam-label">Дата проведения экзамена:</span> {{ exam.exam_date|date:'d.m.Y H:i' }}</div>
+                <div><span class="exam-label">Изображение задания:</span><br>
+                    {% if exam.task_image %}
+                        <img src="{{ exam.task_image.url }}" alt="Задание" class="exam-image">
+                    {% else %}
+                        Нет изображения
+                    {% endif %}
+                </div>
+                <div><span class="exam-label">Студенты (email):</span>
+                    {% for student in exam.students.all %}
+                        {{ student.email }}{% if not forloop.last %}, {% endif %}
+                    {% empty %}Нет студентов{% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>Нет опубликованных экзаменов.</p>
+    {% endif %}
+</body>
+</html> 

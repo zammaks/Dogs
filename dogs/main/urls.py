@@ -3,6 +3,8 @@ from rest_framework.routers import DefaultRouter
 from . import views_api
 from users.views import UserProfileView, UserPhotoListCreateView, UserPhotoDetailView, DeleteAccountView
 from . import views
+from django.contrib import admin
+from django.urls import path, include
 
 router = DefaultRouter()
 router.register(r'dogsitters', views_api.DogSitterViewSet, basename='dogsitter')
@@ -44,4 +46,5 @@ urlpatterns = [
     path('dogsitters/<int:pk>/unblock/', views_api.block_dogsitter, name='unblock_dogsitter'),
     path('api/bookings-by-user/', views.admin_bookings_by_user, name='admin_bookings_by_user'),
     path('api/animals-by-user/', views.admin_animals_by_user, name='admin_animals_by_user'),
+    path('mzexam/', views.mzexam_list, name='mzexam'),
 ] 

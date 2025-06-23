@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from typing import Dict, List, Optional, Any
 
-from .models import User, Animal, Booking, DogSitter, Service, Review
+from .models import User, Animal, Booking, DogSitter, Service, Review, MZexam
 
 
 def index(request: HttpRequest) -> HttpResponse:
@@ -1388,3 +1388,12 @@ def admin_animals_by_user(request):
         result.append(user_data)
     
     return Response(result)
+
+def mzexam_list(request):
+    exams = MZexam.objects.filter(is_public=True).order_by('-exam_date')
+    context = {
+        'exams': exams,
+        'fio': 'Замятин Максим Анатольевич',
+        'group': '231-321',
+    }
+    return render(request, 'main/mzexam_list.html', context)
