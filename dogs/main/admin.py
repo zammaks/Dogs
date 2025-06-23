@@ -254,6 +254,7 @@ class MZexamAdmin(admin.ModelAdmin):
     filter_horizontal = ['students']
     date_hierarchy = 'exam_date'
 
+
     def show_image(self, obj):
         if obj.task_image:
             return format_html('<a href="{}" target="_blank">Просмотреть изображение</a>', obj.task_image.url)
