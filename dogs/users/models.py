@@ -187,6 +187,51 @@ class User(AbstractUser):
     def get_all_animal_names_with_types(self):
         return self.animals.values_list('name', 'type')
 
+    def is_experienced_client(self, min_bookings=5, min_months=6):
+        """
+        Определяет, является ли пользователь опытным клиентом
+        
+        Args:
+            min_bookings: минимальное количество завершенных бронирований
+            min_months: минимальное количество месяцев с первой регистрации
+            
+        Returns:
+            bool: True если пользователь опытный
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        completed_bookings = self.bookings.filter(status='completed').count()
+        
+        months_since_registration = (timezone.now() - self.registration_date).days / 30
+        
+        return completed_bookings >= min_bookings and months_since_registration >= min_months
+    
+    def get_client_experience_level(self):
+        """
+        Возвращает уровень опыта клиента
+        
+        Returns:
+            str: 'new', 'regular', 'experienced'
+        """
+        completed_bookings = self.bookings.filter(status='completed').count()
+        months_since_registration = (timezone.now() - self.registration_date).days / 30
+        
+        if completed_bookings >= 10 and months_since_registration >= 12:
+            return 'experienced'
+        elif completed_bookings >= 3 and months_since_registration >= 3:
+            return 'regular'
+        else:
+            return 'new'
+    
+    def get_total_spent(self):
+        """
+        Возвращает общую сумму потраченную на услуги
+        """
+        return self.bookings.filter(status='completed').aggregate(
+            total=Sum('total_price')
+        )['total'] or 0
+
     class Meta:
         verbose_name = "Пользователь"
         verbose_name_plural = "Пользователи"

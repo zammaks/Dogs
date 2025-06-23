@@ -3,7 +3,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 from django.contrib import messages
 from django.utils.html import format_html
-from .models import User, DogSitter, Animal, Booking, Service, Review, BookingAnimal
+from .models import User, DogSitter, Animal, Booking, Service, Review, BookingAnimal, MZexam
 from .utils import generate_booking_pdf, generate_dogsitter_report_pdf
 
 @admin.register(User)
@@ -245,3 +245,17 @@ class BookingAnimalAdmin(admin.ModelAdmin):
     list_filter = ['added_at']
     search_fields = ['booking__id', 'animal__name', 'special_notes']
     readonly_fields = ['added_at']
+
+@admin.register(MZexam)
+class MZexamAdmin(admin.ModelAdmin):
+    list_display = ['title', 'exam_date', 'created_at', 'is_public', 'show_image']
+    list_filter = ['is_public', 'created_at', 'exam_date']
+    search_fields = ['title', 'students__email']
+    filter_horizontal = ['students']
+    date_hierarchy = 'exam_date'
+
+    def show_image(self, obj):
+        if obj.task_image:
+            return format_html('<a href="{}" target="_blank">Просмотреть изображение</a>', obj.task_image.url)
+        return "Нет изображения"
+    show_image.short_description = "Изображение задания"

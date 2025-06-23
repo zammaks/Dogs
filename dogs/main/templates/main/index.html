@@ -1,10 +1,218 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>DogSitters</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DogSitters API</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .api-section {
+            margin-bottom: 40px;
+        }
+        
+        .api-section h2 {
+            color: #333;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #4facfe;
+            padding-bottom: 10px;
+        }
+        
+        .endpoints {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .endpoint {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .endpoint:hover {
+            border-color: #4facfe;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .endpoint h3 {
+            color: #4facfe;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+        
+        .endpoint p {
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        .endpoint a {
+            display: inline-block;
+            background: #4facfe;
+            color: white;
+            padding: 8px 16px;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s ease;
+        }
+        
+        .endpoint a:hover {
+            background: #357abd;
+        }
+        
+        .admin-link {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            background: #e3f2fd;
+            border-radius: 10px;
+        }
+        
+        .admin-link a {
+            display: inline-block;
+            background: #ff6b6b;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            transition: background 0.3s ease;
+        }
+        
+        .admin-link a:hover {
+            background: #e55555;
+        }
+        
+        .status {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            color: #155724;
+        }
+        
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #e9ecef;
+        }
+    </style>
 </head>
 <body>
-    <h1>Добро пожаловать в DogSitters</h1>
-    <p>API сервер работает!</p>
+    <div class="container">
+        <div class="header">
+            <h1>🐕 DogSitters API</h1>
+            <p>REST API для сервиса догситтеров</p>
+        </div>
+        
+        <div class="content">
+            <div class="status">
+                ✅ <strong>API сервер работает!</strong> Все endpoints доступны
+            </div>
+            
+            <div class="api-section">
+                <h2>📋 Доступные API Endpoints</h2>
+                
+                <div class="endpoints">
+                    <div class="endpoint">
+                        <h3>🐕 Догситтеры</h3>
+                        <p>Управление догситтерами, их профилями и рейтингами</p>
+                        <a href="/api/dogsitters/" target="_blank">Перейти к API</a>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <h3>📅 Бронирования</h3>
+                        <p>Создание и управление бронированиями услуг</p>
+                        <a href="/api/bookings/" target="_blank">Перейти к API</a>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <h3>🐾 Животные</h3>
+                        <p>Управление профилями животных пользователей</p>
+                        <a href="/api/animals/" target="_blank">Перейти к API</a>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <h3>🔧 Услуги</h3>
+                        <p>Просмотр доступных услуг догситтеров</p>
+                        <a href="/api/services/" target="_blank">Перейти к API</a>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <h3>👤 Пользователи</h3>
+                        <p>Управление профилями пользователей</p>
+                        <a href="/api/users/me/" target="_blank">Мой профиль</a>
+                    </div>
+                    
+                    <div class="endpoint">
+                        <h3>📊 Статистика</h3>
+                        <p>Аналитика и статистика системы</p>
+                        <a href="/api/statistics/" target="_blank">Перейти к API</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="admin-link">
+                <h3>🔧 Администрирование</h3>
+                <p>Для управления данными через веб-интерфейс</p>
+                <a href="/admin/" target="_blank">Открыть админ панель</a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>DogSitters API v1.0 | Powered by Django REST Framework</p>
+        </div>
+    </div>
 </body>
 </html> 

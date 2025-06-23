@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from .models import User, DogSitter, Booking, Animal, Service, Review
 from django.db.models import Count, Avg
 from django.utils import timezone
+from .validators import validate_booking_compatibility, validate_dogsitter_client_compatibility
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -148,6 +149,10 @@ class BookingSerializer(serializers.ModelSerializer):
     # Дополнительные вычисляемые поля
     review_status = serializers.SerializerMethodField()
     review_summary = serializers.SerializerMethodField()
+    
+    # Поля для валидации совместимости
+    compatibility_info = serializers.SerializerMethodField()
+    can_book = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
@@ -155,7 +160,8 @@ class BookingSerializer(serializers.ModelSerializer):
             'id', 'user', 'dog_sitter', 'start_date', 'end_date',
             'status', 'total_price', 'booking_rating', 'has_review',
             'review_length', 'review_date', 'is_review_verified',
-            'days_until_review', 'review_status', 'review_summary'
+            'days_until_review', 'review_status', 'review_summary',
+            'compatibility_info', 'can_book'
         ]
 
     def get_review_status(self, obj):
@@ -180,4 +186,57 @@ class BookingSerializer(serializers.ModelSerializer):
             'length': obj.review_length,
             'days_after_booking': obj.days_until_review.days if obj.days_until_review else None,
             'verified': obj.is_review_verified
-        } 
+        }
+    
+    def get_compatibility_info(self, obj):
+        """
+        Возвращает информацию о совместимости догситтера и клиента
+        """
+        if not obj.dog_sitter or not obj.user:
+            return None
+            
+        return obj.dog_sitter.get_compatibility_with_client(obj.user)
+    
+    def get_can_book(self, obj):
+        """
+        Проверяет, можно ли создать бронирование
+        """
+        if not obj.dog_sitter or not obj.user:
+            return False
+            
+        compatibility = obj.dog_sitter.get_compatibility_with_client(obj.user)
+        return compatibility['compatible']
+    
+    def validate(self, data):
+        """
+        Валидация данных бронирования
+        """
+        # Получаем догситтера и клиента
+        dogsitter = data.get('dog_sitter')
+        user = data.get('user') or self.context.get('request').user if self.context.get('request') else None
+        
+        if dogsitter and user:
+            # Проверяем совместимость
+            try:
+                validate_new_dogsitter_experience_restriction(dogsitter, user)
+            except Exception as e:
+                raise serializers.ValidationError(str(e))
+        
+        return data
+    
+    def create(self, validated_data):
+        """
+        Создание бронирования с дополнительной валидацией
+        """
+        user = validated_data.get('user') or self.context['request'].user
+        dogsitter = validated_data.get('dog_sitter')
+        
+        # Проверяем совместимость перед созданием
+        if dogsitter and user:
+            validator = DogsitterClientCompatibilityValidator()
+            try:
+                validator(dogsitter, user)
+            except Exception as e:
+                raise serializers.ValidationError(str(e))
+        
+        return super().create(validated_data) 

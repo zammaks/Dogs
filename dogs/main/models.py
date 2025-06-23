@@ -475,13 +475,83 @@ class DogSitter(models.Model):
         )
 
     def get_bookings_with_animals_and_reviews(self):
-        """Получает бронирования догситтера с животными и отзывами"""
+        """Получает бронирования с животными и отзывами"""
         return self.bookings.select_related('user').prefetch_related(
-            'animals',
-            'services',
-            'review',
-            'bookinganimal_set'  # Для доступа к дополнительной информации о животных
-        )
+            'animals', 'review'
+        ).all()
+
+    def is_new_dogsitter(self, max_bookings=3, max_months=3):
+        """
+        Определяет, является ли догситтер новым
+        
+        Args:
+            max_bookings: максимальное количество завершенных бронирований
+            max_months: максимальное количество месяцев с регистрации
+            
+        Returns:
+            bool: True если догситтер новый
+        """
+        
+        # Проверяем количество завершенных бронирований
+        completed_bookings = self.bookings.filter(status='completed').count()
+        
+        # Проверяем время с регистрации пользователя
+        months_since_registration = (timezone.now() - self.user.registration_date).days / 30
+        
+        return completed_bookings <= max_bookings and months_since_registration <= max_months
+    
+    def get_dogsitter_experience_level(self):
+        """
+        Возвращает уровень опыта догситтера
+        
+        Returns:
+            str: 'new', 'regular', 'experienced'
+        """
+        completed_bookings = self.bookings.filter(status='completed').count()
+        months_since_registration = (timezone.now() - self.user.registration_date).days / 30
+        
+        if completed_bookings >= 20 and months_since_registration >= 12:
+            return 'experienced'
+        elif completed_bookings >= 5 and months_since_registration >= 3:
+            return 'regular'
+        else:
+            return 'new'
+    
+    def can_serve_experienced_clients(self):
+        """
+        Проверяет, может ли догситтер обслуживать опытных клиентов
+        
+        Returns:
+            bool: True если может обслуживать опытных клиентов
+        """
+        return not self.is_new_dogsitter()
+    
+    def get_compatibility_with_client(self, client):
+        """
+        Проверяет совместимость догситтера с клиентом
+        
+        Args:
+            client: объект User (клиент)
+            
+        Returns:
+            dict: информация о совместимости
+        """
+        is_new_dogsitter = self.is_new_dogsitter()
+        is_experienced_client = client.is_experienced_client()
+        
+        compatibility = {
+            'compatible': True,
+            'reason': None,
+            'dogsitter_level': self.get_dogsitter_experience_level(),
+            'client_level': client.get_client_experience_level()
+        }
+        
+        # Если догситтер новый, а клиент опытный - несовместимы
+        if is_new_dogsitter and is_experienced_client:
+            compatibility['compatible'] = False
+            compatibility['reason'] = 'Новые догситтеры не могут обслуживать опытных клиентов'
+        
+        return compatibility
 
     def delete(self, *args, **kwargs):
         # Удаляем файлы при удалении объекта
@@ -837,5 +907,31 @@ class Review(models.Model):
         verbose_name = "Отзыв"
         verbose_name_plural = "Отзывы"
         ordering = ['-date']
+
+class MZexam(models.Model):
+    """Модель для хранения информации о экзаменах"""
+    title = models.CharField(max_length=200, verbose_name="Название экзамена")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    exam_date = models.DateTimeField(verbose_name="Дата проведения экзамена")
+    task_image = models.ImageField(
+        upload_to='exams/',
+        null=True,
+        blank=True,
+        verbose_name="Изображение задания"
+    )
+    students = models.ManyToManyField(
+        User,
+        related_name='exams',
+        verbose_name="Студенты"
+    )
+    is_public = models.BooleanField(default=False, verbose_name="Опубликовано")
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        verbose_name = "Экзамен"
+        verbose_name_plural = "Экзамены"
+        ordering = ['-exam_date']
 
 

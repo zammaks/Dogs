@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -13,6 +13,7 @@ from .serializers import DogSitterSerializer, BookingSerializer, UserSerializer,
 from rest_framework.parsers import MultiPartParser, FormParser
 from .permissions import IsSuperUser
 from .filters import DogSitterFilter
+from .validators import validate_new_dogsitter_experience_restriction, DogsitterClientCompatibilityValidator
 from .views_annotations import (
     get_dogsitter_statistics,
     get_animal_statistics,
@@ -25,6 +26,7 @@ import sentry_sdk
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from django.utils import timezone
 
 def index(request):
     return render(request, 'main/index.html')
@@ -163,7 +165,32 @@ class BookingViewSet(viewsets.ModelViewSet):
         return get_bookings_with_ratings()
     
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        """
+        Создание бронирования с валидацией совместимости
+        """
+        user = self.request.user
+        dogsitter = serializer.validated_data.get('dog_sitter')
+        
+        # Проверяем совместимость
+        if dogsitter:
+            try:
+                validate_new_dogsitter_experience_restriction(dogsitter, user)
+            except Exception as e:
+                raise serializers.ValidationError(str(e))
+        
+        serializer.save(user=user)
+    
+    def create(self, request, *args, **kwargs):
+        """
+        Создание бронирования с дополнительной валидацией
+        """
+        try:
+            return super().create(request, *args, **kwargs)
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     @action(detail=True, methods=['get'])
     def review_details(self, request, pk=None):
@@ -173,6 +200,52 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking = self.get_object()
         serializer = self.get_serializer(booking)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def check_compatibility(self, request):
+        """
+        Проверка совместимости догситтера и клиента
+        """
+        dogsitter_id = request.data.get('dogsitter_id')
+        user = request.user
+        
+        if not dogsitter_id:
+            return Response(
+                {'error': 'dogsitter_id обязателен'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            dogsitter = DogSitter.objects.get(id=dogsitter_id)
+            compatibility = dogsitter.get_compatibility_with_client(user)
+            
+            return Response({
+                'compatible': compatibility['compatible'],
+                'reason': compatibility['reason'],
+                'dogsitter_level': compatibility['dogsitter_level'],
+                'client_level': compatibility['client_level'],
+                'dogsitter_info': {
+                    'completed_bookings': dogsitter.bookings.filter(status='completed').count(),
+                    'months_since_registration': (timezone.now() - dogsitter.user.registration_date).days / 30,
+                    'is_new': dogsitter.is_new_dogsitter()
+                },
+                'client_info': {
+                    'completed_bookings': user.bookings.filter(status='completed').count(),
+                    'months_since_registration': (timezone.now() - user.registration_date).days / 30,
+                    'is_experienced': user.is_experienced_client()
+                }
+            })
+            
+        except DogSitter.DoesNotExist:
+            return Response(
+                {'error': 'Догситтер не найден'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
